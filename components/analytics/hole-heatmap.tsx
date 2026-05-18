@@ -1,0 +1,66 @@
+"use client";
+
+import type { HoleHeatmapCell } from "@/lib/stats";
+
+function colorFor(avgVsPar: number): string {
+  if (avgVsPar <= -0.5) return "oklch(0.72 0.17 152 / 0.9)";
+  if (avgVsPar <= 0) return "oklch(0.72 0.17 152 / 0.55)";
+  if (avgVsPar <= 0.5) return "oklch(0.72 0.17 152 / 0.25)";
+  if (avgVsPar <= 1) return "oklch(0.78 0.14 80 / 0.35)";
+  if (avgVsPar <= 1.5) return "oklch(0.78 0.14 80 / 0.55)";
+  if (avgVsPar <= 2) return "oklch(0.7 0.18 30 / 0.4)";
+  return "oklch(0.7 0.18 30 / 0.7)";
+}
+
+export function HoleHeatmap({ cells }: { cells: HoleHeatmapCell[] }) {
+  if (cells.length === 0) {
+    return (
+      <div className="grid h-48 place-items-center text-sm text-muted-foreground">
+        No hole data yet.
+      </div>
+    );
+  }
+  const sorted = [...cells].sort((a, b) => a.holeNumber - b.holeNumber);
+  const renderRow = (row: typeof sorted, label: string) => (
+    <div>
+      <div className="mb-1.5 text-[11px] uppercase tracking-widest text-muted-foreground">
+        {label}
+      </div>
+      <div className="-mx-1 overflow-x-auto px-1">
+        <div className="grid min-w-[540px] grid-cols-9 gap-1.5">
+          {row.map((c) => (
+            <div
+              key={c.holeNumber}
+              className="rounded-lg border border-border/60 p-2"
+              style={{ background: colorFor(c.avgVsPar) }}
+            >
+              <div className="flex items-baseline justify-between text-[10px] text-muted-foreground">
+                <span className="font-semibold text-foreground">H{c.holeNumber}</span>
+                <span>p{c.par}</span>
+              </div>
+              <div className="number-mono mt-1 text-base font-semibold">
+                {c.avgStrokes.toFixed(2)}
+              </div>
+              <div className="text-[10px]">
+                {c.avgVsPar >= 0 ? "+" : ""}
+                {c.avgVsPar.toFixed(2)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+  return (
+    <div className="space-y-4">
+      {renderRow(sorted.slice(0, 9), "Front 9")}
+      {sorted.length > 9 && renderRow(sorted.slice(9, 18), "Back 9")}
+      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <span className="inline-block h-3 w-3 rounded" style={{ background: colorFor(-0.5) }} /> under par
+        <span className="inline-block h-3 w-3 rounded" style={{ background: colorFor(0) }} /> ~ par
+        <span className="inline-block h-3 w-3 rounded" style={{ background: colorFor(1) }} /> bogey-ish
+        <span className="inline-block h-3 w-3 rounded" style={{ background: colorFor(2.5) }} /> trouble
+      </div>
+    </div>
+  );
+}

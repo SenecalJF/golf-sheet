@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Course {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  city      String
+  province  String   @default("QC")
+  country   String   @default("Canada")
+  notes     String?
+  createdAt DateTime @default(now())
+
+  tees   Tee[]
+  rounds Round[]
+}
+
+model Tee {
+  id        String  @id @default(cuid())
+  courseId  String
+  name      String
+  color     String?
+  rating    Float?
+  slope     Int?
+  yardage   Int?
+  pars      String
+  holeCount Int     @default(18)
+
+  rating9F Float?
+  slope9F  Int?
+  rating9B Float?
+  slope9B  Int?
+
+  course Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  rounds Round[]
+
+  @@unique([courseId, name])
+}
+
+model Round {
+  id              String   @id @default(cuid())
+  courseId        String
+  teeId           String?
+  date            DateTime
+  holeCount       Int
+  nineType        String?
+  notes           String?
+  weather         String?
+  pcc             Float    @default(0)
+  totalStrokes    Int
+  totalPar        Int
+  scoreDiff       Float?
+  sourceImage     String?
+  extractionModel String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  course Course      @relation(fields: [courseId], references: [id])
+  tee    Tee?        @relation(fields: [teeId], references: [id])
+  holes  HoleScore[]
+
+  @@index([date])
+  @@index([courseId])
+}
+
+model HoleScore {
+  id         String  @id @default(cuid())
+  roundId    String
+  holeNumber Int
+  par        Int
+  strokes    Int
+  putts      Int?
+  fairwayHit Boolean?
+  gir        Boolean?
+  confidence Float?
+  illegible  Boolean @default(false)
+
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, holeNumber])
+}
