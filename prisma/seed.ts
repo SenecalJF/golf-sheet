@@ -33,6 +33,11 @@ const COURSES: { name: string; city: string }[] = [
 const DEFAULT_PARS = "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4";
 
 async function main() {
+  const existing = await prisma.course.count();
+  if (existing >= COURSES.length) {
+    console.log(`Skipping seed — ${existing} courses already present.`);
+    return;
+  }
   for (const c of COURSES) {
     const course = await prisma.course.upsert({
       where: { name: c.name },

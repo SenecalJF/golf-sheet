@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAnthropic, MODELS } from "@/lib/anthropic";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
-import { buildTrend, parTypeBreakdown, holeHeatmap, perCourseSummary } from "@/lib/stats";
+import {
+  buildTrend,
+  parTypeBreakdown,
+  holeHeatmap,
+  perCourseSummary,
+  type RoundFull,
+} from "@/lib/stats";
 
 const INSIGHTS_SYSTEM = `You are a concise, sharp golf coach reviewing a player's recent rounds.
 - Lead with the 2 most actionable patterns you see (strengths and weaknesses).
@@ -14,7 +20,7 @@ const INSIGHTS_SYSTEM = `You are a concise, sharp golf coach reviewing a player'
 export async function POST(req: Request) {
   const { courseId } = await req.json().catch(() => ({ courseId: null }));
 
-  const rounds = await prisma.round.findMany({
+  const rounds: RoundFull[] = await prisma.round.findMany({
     where: courseId ? { courseId } : undefined,
     include: { course: true, tee: true, holes: { orderBy: { holeNumber: "asc" } } },
     orderBy: { date: "desc" },
