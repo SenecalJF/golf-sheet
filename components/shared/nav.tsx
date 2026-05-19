@@ -85,8 +85,8 @@ export function DesktopNav() {
         </div>
         <NavLinks />
         <div className="mt-auto rounded-xl border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground">
-          <div className="mb-1 font-semibold text-foreground">Greater Montreal</div>
-          Pre-loaded with ~18 courses. Add more from the Courses page.
+          <div className="mb-1 font-semibold text-foreground">Across Quebec</div>
+          From Montreal to Tremblant to Charlevoix. Add more on the Courses page.
         </div>
       </div>
     </aside>

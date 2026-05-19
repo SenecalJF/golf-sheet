@@ -10,6 +10,7 @@ const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
 const COURSES: { name: string; city: string }[] = [
+  // Montreal / South Shore / North Shore
   { name: "Le Mirage", city: "Terrebonne" },
   { name: "Club de golf Saint-Raphaël", city: "Île-Bizard" },
   { name: "Golf Saint-Lazare", city: "Saint-Lazare" },
@@ -28,6 +29,38 @@ const COURSES: { name: string; city: string }[] = [
   { name: "Club de golf Glendale", city: "Mirabel" },
   { name: "Golf Islesmere", city: "Laval" },
   { name: "Club de golf Bellevue", city: "Léry" },
+  { name: "Club de golf Le Cardinal", city: "Laval" },
+  { name: "Club de golf de l'Île de Boucherville", city: "Boucherville" },
+  { name: "Club de golf de Saint-Lambert", city: "Saint-Lambert" },
+  { name: "Club de golf Dorval", city: "Dorval" },
+  { name: "Royal Montreal Golf Club", city: "Île-Bizard" },
+  { name: "Country Club de Montréal", city: "Saint-Lambert" },
+  { name: "Club de golf Laval-sur-le-Lac", city: "Laval" },
+  { name: "Club de golf Mont-Bruno", city: "Saint-Bruno-de-Montarville" },
+  { name: "Club de golf de la Vallée-du-Richelieu", city: "Sainte-Julie" },
+  { name: "Le Blainvillier", city: "Blainville" },
+  { name: "Club de golf Quatre-Domaines", city: "Mirabel" },
+  { name: "Club de golf de Saint-Hyacinthe", city: "Saint-Hyacinthe" },
+
+  // Laurentides / Mont-Tremblant
+  { name: "Le Diable", city: "Mont-Tremblant" },
+  { name: "Le Géant", city: "Mont-Tremblant" },
+  { name: "Le Maître de Mont-Tremblant", city: "Mont-Tremblant" },
+  { name: "Gray Rocks", city: "Mont-Tremblant" },
+  { name: "Royal Laurentien", city: "Saint-Faustin-Lac-Carré" },
+  { name: "La Bête de Tremblant", city: "Mont-Tremblant" },
+
+  // Cantons-de-l'Est / Estrie
+  { name: "Royal Bromont", city: "Bromont" },
+  { name: "Owl's Head", city: "Mansonville" },
+
+  // Charlevoix
+  { name: "Club de golf Murray Bay", city: "La Malbaie" },
+  { name: "Le Manoir Richelieu", city: "La Malbaie" },
+
+  // Québec / Chaudière-Appalaches
+  { name: "Royal Québec", city: "Boischatel" },
+  { name: "Club de golf Cap-Rouge", city: "Québec" },
 ];
 
 const DEFAULT_PARS = "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4";

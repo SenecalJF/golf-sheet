@@ -22,7 +22,7 @@ export default async function CoursesPage() {
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Courses</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">
-            {courses.length} courses around Montreal
+            {courses.length} courses across Quebec
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Rating + slope are optional — the AI can read them from a scorecard photo when
