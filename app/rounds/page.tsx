@@ -2,16 +2,22 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Calendar, MapPin } from "lucide-react";
+import { Camera, Calendar, CheckCircle2, Clock, MapPin, Send, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { requireUser } from "@/lib/auth-utils";
-import { getRoundsForUser } from "@/lib/data";
+import { getPendingRoundSummariesForUser, getRoundsForUser } from "@/lib/data";
+import type { PendingRoundSummary } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function RoundsPage() {
   const user = await requireUser();
-  const rounds = await getRoundsForUser(user.id);
+  const [rounds, pendingRounds] = await Promise.all([
+    getRoundsForUser(user.id),
+    getPendingRoundSummariesForUser(user.id),
+  ]);
+  const receivedPending = pendingRounds.received.filter((round) => round.status === "PENDING");
+  const sentPending = pendingRounds.sent.slice(0, 5);
 
   return (
     <div className="space-y-8">
@@ -28,6 +34,9 @@ export default async function RoundsPage() {
           </Link>
         </Button>
       </div>
+
+      {receivedPending.length > 0 && <PendingInbox rounds={receivedPending} />}
+      {sentPending.length > 0 && <SentPendingRounds rounds={sentPending} />}
 
       {rounds.length === 0 ? (
         <Card className="grid place-items-center p-12 text-center">
@@ -98,5 +107,140 @@ export default async function RoundsPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+function PendingInbox({ rounds }: { rounds: PendingRoundSummary[] }) {
+  return (
+    <Card className="overflow-hidden border-amber-500/30 bg-amber-500/5 p-0">
+      <div className="flex flex-col gap-2 border-b border-border/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Clock className="h-4 w-4 text-amber-400" />
+          Pending rounds for you
+        </div>
+        <Badge variant="outline" className="w-fit border-amber-500/40 text-amber-400">
+          {rounds.length} waiting
+        </Badge>
+      </div>
+      <ul className="divide-y divide-border/60">
+        {rounds.map((round) => {
+          const over = round.totalStrokes - round.totalPar;
+          return (
+            <li key={round.id}>
+              <Link
+                href={`/rounds/pending/${round.id}`}
+                className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-secondary/30 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="font-medium">
+                    {round.scorecardPlayerName ??
+                      round.scorecardRowLabel ??
+                      "Shared scorecard row"}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>From {round.sender.name}</span>
+                    <span>·</span>
+                    <span>{round.course.name}</span>
+                    <span>·</span>
+                    <span>{format(round.date, "MMM d, yyyy")}</span>
+                    <span>·</span>
+                    <span>{round.holeCount}H</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-4 sm:justify-end">
+                  <div className="text-left sm:text-right">
+                    <div className="number-mono text-2xl font-semibold">
+                      {round.totalStrokes}
+                    </div>
+                    <div className={scoreTone(over)}>
+                      {over >= 0 ? "+" : ""}
+                      {over} vs par
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+                    Review
+                  </Badge>
+                </div>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
+function SentPendingRounds({ rounds }: { rounds: PendingRoundSummary[] }) {
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="flex items-center gap-2 border-b border-border/60 px-4 py-3 text-sm font-semibold">
+        <Send className="h-4 w-4 text-primary" />
+        Sent pending rounds
+      </div>
+      <ul className="divide-y divide-border/60">
+        {rounds.map((round) => {
+          const over = round.totalStrokes - round.totalPar;
+          return (
+            <li
+              key={round.id}
+              className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <div className="font-medium">
+                  {round.scorecardPlayerName ??
+                    round.scorecardRowLabel ??
+                    "Shared scorecard row"}
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>To {round.recipient.name}</span>
+                  <span>·</span>
+                  <span>{round.course.name}</span>
+                  <span>·</span>
+                  <span>{format(round.date, "MMM d, yyyy")}</span>
+                  <span>·</span>
+                  <span>
+                    {round.totalStrokes} ({over >= 0 ? "+" : ""}
+                    {over})
+                  </span>
+                </div>
+              </div>
+              <StatusBadge status={round.status} />
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
+function StatusBadge({ status }: { status: PendingRoundSummary["status"] }) {
+  if (status === "ACCEPTED") {
+    return (
+      <Badge variant="outline" className="w-fit border-primary/40 text-primary">
+        <CheckCircle2 className="mr-1 h-3 w-3" />
+        Accepted
+      </Badge>
+    );
+  }
+  if (status === "REJECTED") {
+    return (
+      <Badge variant="outline" className="w-fit border-destructive/40 text-destructive">
+        <XCircle className="mr-1 h-3 w-3" />
+        Rejected
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="w-fit border-amber-500/40 text-amber-400">
+      <Clock className="mr-1 h-3 w-3" />
+      Pending
+    </Badge>
+  );
+}
+
+function scoreTone(over: number): string {
+  return (
+    "text-xs " +
+    (over <= 0 ? "text-primary" : over < 5 ? "text-amber-400" : "text-destructive")
   );
 }

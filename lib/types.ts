@@ -16,10 +16,19 @@ export const ExtractedTeeSchema = z.object({
   yardage: z.number().int().nullable().optional(),
 });
 
+export const ExtractedPlayerSchema = z.object({
+  playerName: z.string().nullable().optional(),
+  rowLabel: z.string().nullable().optional(),
+  holes: z.array(HoleExtractionSchema),
+  confidence: z.number().min(0).max(1).default(0),
+  notes: z.string().nullable().optional(),
+});
+
 export const ExtractedScorecardSchema = z.object({
   holeCount: z.union([z.literal(9), z.literal(18)]),
   nineType: z.enum(["front", "back"]).nullable().optional(),
-  holes: z.array(HoleExtractionSchema),
+  players: z.array(ExtractedPlayerSchema).default([]),
+  holes: z.array(HoleExtractionSchema).optional(),
   pars: z.array(z.number().int().min(3).max(6)).nullable().optional(),
   tees: z.array(ExtractedTeeSchema).default([]),
   playerTeeName: z.string().nullable().optional(),
@@ -30,6 +39,7 @@ export const ExtractedScorecardSchema = z.object({
 
 export type ExtractedScorecard = z.infer<typeof ExtractedScorecardSchema>;
 export type HoleExtraction = z.infer<typeof HoleExtractionSchema>;
+export type ExtractedPlayer = z.infer<typeof ExtractedPlayerSchema>;
 
 export const HoleInputSchema = z.object({
   holeNumber: z.number().int().min(1).max(18),
@@ -54,8 +64,23 @@ export const RoundInputSchema = z.object({
   holes: z.array(HoleInputSchema).min(9).max(18),
 });
 
+export const PendingRoundAssignmentSchema = z.object({
+  recipientUserId: z.string().min(1),
+  scorecardPlayerName: z.string().max(100).nullable().optional(),
+  scorecardRowLabel: z.string().max(100).nullable().optional(),
+  rowConfidence: z.number().min(0).max(1).nullable().optional(),
+  rowNotes: z.string().max(500).nullable().optional(),
+  holes: z.array(HoleInputSchema).min(9).max(18),
+});
+
+export const RoundCreateInputSchema = RoundInputSchema.extend({
+  pendingAssignments: z.array(PendingRoundAssignmentSchema).max(8).optional(),
+});
+
 export type RoundInput = z.infer<typeof RoundInputSchema>;
+export type RoundCreateInput = z.infer<typeof RoundCreateInputSchema>;
 export type HoleInput = z.infer<typeof HoleInputSchema>;
+export type PendingRoundAssignment = z.infer<typeof PendingRoundAssignmentSchema>;
 
 export const CourseInputSchema = z.object({
   name: z.string().min(2),

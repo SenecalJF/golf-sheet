@@ -23,7 +23,7 @@ const SCORECARD_OUTPUT_FORMAT = {
     required: [
       "holeCount",
       "nineType",
-      "holes",
+      "players",
       "pars",
       "tees",
       "playerTeeName",
@@ -34,22 +34,36 @@ const SCORECARD_OUTPUT_FORMAT = {
     properties: {
       holeCount: { type: "integer", enum: [9, 18] },
       nineType: { anyOf: [{ enum: ["front", "back"] }, { type: "null" }] },
-      holes: {
+      players: {
         type: "array",
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["hole", "par", "strokes", "confidence", "illegible"],
+          required: ["playerName", "rowLabel", "holes", "confidence", "notes"],
           properties: {
-            hole: { type: "integer" },
-            par: {
-              anyOf: [{ type: "integer" }, { type: "null" }],
-            },
-            strokes: {
-              anyOf: [{ type: "integer" }, { type: "null" }],
+            playerName: { anyOf: [{ type: "string" }, { type: "null" }] },
+            rowLabel: { anyOf: [{ type: "string" }, { type: "null" }] },
+            holes: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["hole", "par", "strokes", "confidence", "illegible"],
+                properties: {
+                  hole: { type: "integer" },
+                  par: {
+                    anyOf: [{ type: "integer" }, { type: "null" }],
+                  },
+                  strokes: {
+                    anyOf: [{ type: "integer" }, { type: "null" }],
+                  },
+                  confidence: { type: "number" },
+                  illegible: { type: "boolean" },
+                },
+              },
             },
             confidence: { type: "number" },
-            illegible: { type: "boolean" },
+            notes: { anyOf: [{ type: "string" }, { type: "null" }] },
           },
         },
       },
@@ -199,7 +213,7 @@ export async function POST(req: Request) {
   try {
     resp = await anthropic.messages.create({
       model,
-      max_tokens: 3500,
+      max_tokens: 6000,
       output_config: { format: SCORECARD_OUTPUT_FORMAT },
       system: [
         {

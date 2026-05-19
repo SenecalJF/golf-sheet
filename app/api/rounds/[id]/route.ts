@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { computeScoreDifferential } from "@/lib/handicap";
+import { holeCreateRows, summarizeRoundScore, validateRoundHoles } from "@/lib/round-scoring";
 import { RoundInputSchema } from "@/lib/types";
 import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
 
@@ -50,16 +50,9 @@ export async function PATCH(
   }
 
   const d = parsed.data;
-  if (d.holes.length !== d.holeCount) {
-    return NextResponse.json(
-      { error: `Expected ${d.holeCount} holes, got ${d.holes.length}` },
-      { status: 400 },
-    );
-  }
-
-  const holeNumbers = new Set(d.holes.map((hole) => hole.holeNumber));
-  if (holeNumbers.size !== d.holes.length) {
-    return NextResponse.json({ error: "Hole numbers must be unique" }, { status: 400 });
+  const holeError = validateRoundHoles(d);
+  if (holeError) {
+    return NextResponse.json({ error: holeError }, { status: 400 });
   }
 
   const date = new Date(d.date);
@@ -100,26 +93,7 @@ export async function PATCH(
     );
   }
 
-  const totalStrokes = d.holes.reduce((sum, hole) => sum + hole.strokes, 0);
-  const totalPar = d.holes.reduce((sum, hole) => sum + hole.par, 0);
-  const scoreDiff = tee
-    ? computeScoreDifferential({
-        id,
-        date,
-        holeCount: d.holeCount,
-        nineType: d.holeCount === 9 ? d.nineType ?? null : null,
-        totalStrokes,
-        pars: d.holes.map((hole) => hole.par),
-        holeStrokes: d.holes.map((hole) => hole.strokes),
-        rating: tee.rating,
-        slope: tee.slope,
-        rating9F: tee.rating9F,
-        slope9F: tee.slope9F,
-        rating9B: tee.rating9B,
-        slope9B: tee.slope9B,
-        pcc: d.pcc,
-      })
-    : null;
+  const summary = summarizeRoundScore(d, tee, id);
 
   const round = await prisma.round.update({
     where: { id },
@@ -132,21 +106,14 @@ export async function PATCH(
       notes: d.notes?.trim() || null,
       weather: d.weather ?? existing.weather,
       pcc: d.pcc,
-      totalStrokes,
-      totalPar,
-      scoreDiff,
+      totalStrokes: summary.totalStrokes,
+      totalPar: summary.totalPar,
+      scoreDiff: summary.scoreDiff,
       sourceImage: existing.sourceImage,
       extractionModel: existing.extractionModel,
       holes: {
         deleteMany: {},
-        create: d.holes.map((hole) => ({
-          holeNumber: hole.holeNumber,
-          par: hole.par,
-          strokes: hole.strokes,
-          putts: hole.putts ?? null,
-          confidence: hole.confidence ?? null,
-          illegible: false,
-        })),
+        create: holeCreateRows(d.holes).map((hole) => ({ ...hole, illegible: false })),
       },
     },
     include: { holes: { orderBy: { holeNumber: "asc" } }, course: true, tee: true },

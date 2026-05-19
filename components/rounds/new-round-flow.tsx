@@ -13,6 +13,8 @@ import {
   Sparkles,
   Trash2,
   UploadCloud,
+  UserPlus,
+  Users,
   X,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -56,6 +58,25 @@ type DetectedTee = {
   yardage: number | null;
 };
 
+type ShareableUser = {
+  id: string;
+  name: string;
+  image: string | null;
+};
+
+type DetectedPlayer = {
+  playerName: string | null;
+  rowLabel: string | null;
+  holes: GridHole[];
+  confidence: number | null;
+  notes: string | null;
+};
+
+type PendingAssignment = {
+  playerIndex: number;
+  recipientUserId: string;
+};
+
 type SelectedFile = {
   file: File;
   previewUrl: string;
@@ -77,6 +98,9 @@ type RoundDraft = {
   extractionNotes: string | null;
   detectedTees: DetectedTee[];
   chosenDetectedTeeName: string | null;
+  detectedPlayers: DetectedPlayer[];
+  selectedPlayerIndex: number | null;
+  pendingAssignments: PendingAssignment[];
 };
 
 type RoundDraftInput = Omit<RoundDraft, "version" | "savedAt" | "mode"> & {
@@ -90,9 +114,11 @@ const DRAFT_EVENT = "golf-sheet-new-round-draft";
 export function NewRoundFlow({
   courses,
   aiEnabled,
+  shareableUsers,
 }: {
   courses: CourseWithTees[];
   aiEnabled: boolean;
+  shareableUsers: ShareableUser[];
 }) {
   const router = useRouter();
   const draftSnapshot = React.useSyncExternalStore(
@@ -119,6 +145,9 @@ export function NewRoundFlow({
   const [chosenDetectedTeeName, setChosenDetectedTeeName] = React.useState<string | null>(
     null,
   );
+  const [detectedPlayers, setDetectedPlayers] = React.useState<DetectedPlayer[]>([]);
+  const [selectedPlayerIndex, setSelectedPlayerIndex] = React.useState<number | null>(null);
+  const [pendingAssignments, setPendingAssignments] = React.useState<PendingAssignment[]>([]);
   const filesRef = React.useRef<SelectedFile[]>([]);
 
   const selectedCourse = courses.find((c) => c.id === courseId);
@@ -154,6 +183,9 @@ export function NewRoundFlow({
       extractionNotes,
       detectedTees,
       chosenDetectedTeeName,
+      detectedPlayers,
+      selectedPlayerIndex,
+      pendingAssignments,
     });
     if (draft) writeRoundDraft(draft);
   }, [
@@ -161,6 +193,7 @@ export function NewRoundFlow({
     courseId,
     date,
     detectedTees,
+    detectedPlayers,
     extractionModel,
     extractionNotes,
     holeCount,
@@ -168,6 +201,8 @@ export function NewRoundFlow({
     mode,
     nineType,
     notes,
+    pendingAssignments,
+    selectedPlayerIndex,
     sourceImages,
     teeId,
   ]);
@@ -276,20 +311,56 @@ export function NewRoundFlow({
       }
       setChosenDetectedTeeName(initialPick);
 
-      // Apply hole scores using extracted pars (or the detected per-hole par)
       const extractedPars = data.extraction.pars ?? null;
       const fallbackPars = selectedTee ? parsePars(selectedTee.pars) : [];
-      const extracted: GridHole[] = data.extraction.holes.map((h, i) => ({
-        holeNumber: h.hole ?? i + 1,
-        par: h.par ?? extractedPars?.[i] ?? fallbackPars[i] ?? 4,
-        strokes: h.strokes,
-        confidence: h.confidence ?? null,
-        illegible: h.illegible,
+      const sourcePlayers =
+        data.extraction.players.length > 0
+          ? data.extraction.players
+          : data.extraction.holes
+            ? [
+                {
+                  playerName: null,
+                  rowLabel: "Player 1",
+                  holes: data.extraction.holes,
+                  confidence: 0.8,
+                  notes: null,
+                },
+              ]
+            : [];
+      const players: DetectedPlayer[] = sourcePlayers.map((player, playerIndex) => ({
+        playerName: player.playerName ?? null,
+        rowLabel: player.rowLabel ?? `Player ${playerIndex + 1}`,
+        holes: player.holes.map((h, i) => ({
+          holeNumber: h.hole ?? i + 1,
+          par: h.par ?? extractedPars?.[i] ?? fallbackPars[i] ?? 4,
+          strokes: h.strokes,
+          confidence: h.confidence ?? null,
+          illegible: h.illegible,
+        })),
+        confidence: player.confidence ?? null,
+        notes: player.notes ?? null,
       }));
-      setHoles(extracted);
+      setDetectedPlayers(players);
+      setPendingAssignments([]);
+      if (players.length === 1) {
+        setSelectedPlayerIndex(0);
+        setHoles(players[0].holes);
+      } else if (players.length > 1) {
+        setSelectedPlayerIndex(null);
+        setHoles(
+          applyTeePars(
+            buildBlankHoles(data.extraction.holeCount),
+            selectedTee?.pars,
+            data.extraction.holeCount,
+            data.extraction.nineType ?? null,
+          ),
+        );
+      }
 
       toast.success(
-        tees.length > 0
+        players.length > 1
+          ? `Found ${players.length} player rows — choose yours`
+          : tees.length > 0
           ? `Extracted scorecard + ${tees.length} tee${tees.length === 1 ? "" : "s"}`
           : "Extracted scorecard — please review",
       );
@@ -363,8 +434,14 @@ export function NewRoundFlow({
 
   async function saveRound() {
     if (!courseId) return toast.error("Choose a course");
+    if (mode === "ai" && detectedPlayers.length > 1 && selectedPlayerIndex == null) {
+      return toast.error("Choose your player row before saving");
+    }
     if (holes.some((h) => h.strokes == null || h.illegible)) {
       return toast.error("Fill in every hole before saving");
+    }
+    if (hasIncompleteAssignments) {
+      return toast.error("Assigned player rows need complete scores");
     }
     setSubmitting(true);
     try {
@@ -391,6 +468,10 @@ export function NewRoundFlow({
             confidence: h.confidence ?? null,
             illegible: false,
           })),
+          pendingAssignments: buildPendingRoundAssignments(
+            detectedPlayers,
+            pendingAssignments,
+          ),
         }),
       });
       if (!res.ok) {
@@ -412,9 +493,20 @@ export function NewRoundFlow({
     mode === "ai" ? !chosenDetectedTee && !teeId && (selectedCourse?.tees.length ?? 0) > 0 : false;
   const completedHoles = holes.filter((h) => h.strokes != null && !h.illegible).length;
   const hasIncompleteHoles = completedHoles !== holeCount;
+  const hasIncompleteAssignments = pendingAssignments.some((assignment) => {
+    const player = detectedPlayers[assignment.playerIndex];
+    return !player || player.holes.some((hole) => hole.strokes == null || hole.illegible);
+  });
   const totalStrokes = holes.reduce((sum, h) => sum + (h.strokes ?? 0), 0);
   const totalPar = holes.reduce((sum, h) => sum + h.par, 0);
-  const saveDisabled = submitting || !courseId || needsTee || hasIncompleteHoles;
+  const needsPlayerRow = mode === "ai" && detectedPlayers.length > 1 && selectedPlayerIndex == null;
+  const saveDisabled =
+    submitting ||
+    !courseId ||
+    needsTee ||
+    needsPlayerRow ||
+    hasIncompleteHoles ||
+    hasIncompleteAssignments;
 
   function restoreDraft(draft: RoundDraft) {
     setMode(draft.mode);
@@ -430,12 +522,36 @@ export function NewRoundFlow({
     setExtractionNotes(draft.extractionNotes);
     setDetectedTees(draft.detectedTees);
     setChosenDetectedTeeName(draft.chosenDetectedTeeName);
+    setDetectedPlayers(draft.detectedPlayers);
+    setSelectedPlayerIndex(draft.selectedPlayerIndex);
+    setPendingAssignments(draft.pendingAssignments);
     toast.success("Unsaved round restored");
   }
 
   function discardDraft() {
     clearRoundDraft();
     toast.success("Unsaved round cleared");
+  }
+
+  function choosePlayerRow(index: number) {
+    const player = detectedPlayers[index];
+    if (!player) return;
+    setSelectedPlayerIndex(index);
+    setHoles(player.holes);
+    setPendingAssignments((prev) => prev.filter((item) => item.playerIndex !== index));
+  }
+
+  function assignPlayerRow(playerIndex: number, recipientUserId: string) {
+    setPendingAssignments((prev) => [
+      ...prev.filter(
+        (item) => item.playerIndex !== playerIndex && item.recipientUserId !== recipientUserId,
+      ),
+      { playerIndex, recipientUserId },
+    ]);
+  }
+
+  function clearPlayerAssignment(playerIndex: number) {
+    setPendingAssignments((prev) => prev.filter((item) => item.playerIndex !== playerIndex));
   }
 
   return (
@@ -563,6 +679,18 @@ export function NewRoundFlow({
                   onChoose={setChosenDetectedTeeName}
                 />
               )}
+
+              {detectedPlayers.length > 1 && (
+                <DetectedPlayersPanel
+                  players={detectedPlayers}
+                  selectedPlayerIndex={selectedPlayerIndex}
+                  assignments={pendingAssignments}
+                  shareableUsers={shareableUsers}
+                  onChooseMine={choosePlayerRow}
+                  onAssign={assignPlayerRow}
+                  onClearAssignment={clearPlayerAssignment}
+                />
+              )}
             </div>
           )}
 
@@ -601,6 +729,16 @@ export function NewRoundFlow({
           {needsTee && (
             <p className="text-right text-xs text-muted-foreground">
               Pick a tee above before saving.
+            </p>
+          )}
+          {needsPlayerRow && (
+            <p className="text-right text-xs text-muted-foreground">
+              Choose which detected player row is yours.
+            </p>
+          )}
+          {hasIncompleteAssignments && (
+            <p className="text-right text-xs text-muted-foreground">
+              Assigned player rows must have complete scores before saving.
             </p>
           )}
         </Card>
@@ -801,6 +939,164 @@ function DetectedTeesPicker({
   );
 }
 
+function DetectedPlayersPanel({
+  players,
+  selectedPlayerIndex,
+  assignments,
+  shareableUsers,
+  onChooseMine,
+  onAssign,
+  onClearAssignment,
+}: {
+  players: DetectedPlayer[];
+  selectedPlayerIndex: number | null;
+  assignments: PendingAssignment[];
+  shareableUsers: ShareableUser[];
+  onChooseMine: (index: number) => void;
+  onAssign: (playerIndex: number, recipientUserId: string) => void;
+  onClearAssignment: (playerIndex: number) => void;
+}) {
+  const assignedUserIds = new Set(assignments.map((item) => item.recipientUserId));
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-4">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Users className="h-4 w-4 text-primary" />
+        Player rows detected
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Choose your row first. Other rows can be sent to app users as pending rounds.
+      </p>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {players.map((player, index) => {
+          const isMine = selectedPlayerIndex === index;
+          const assignment = assignments.find((item) => item.playerIndex === index);
+          const assignedUser = shareableUsers.find((user) => user.id === assignment?.recipientUserId);
+          const unavailableUserIds = new Set(assignedUserIds);
+          if (assignment) unavailableUserIds.delete(assignment.recipientUserId);
+
+          return (
+            <div
+              key={`${player.rowLabel ?? "row"}-${index}`}
+              className={cn(
+                "rounded-xl border bg-secondary/25 p-3",
+                isMine ? "border-primary/60 ring-2 ring-primary/30" : "border-border/60",
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold tracking-tight">
+                    {player.playerName ?? player.rowLabel ?? `Player ${index + 1}`}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {playerSummary(player)}
+                  </div>
+                  {player.notes && (
+                    <div className="mt-1 text-xs text-muted-foreground">{player.notes}</div>
+                  )}
+                </div>
+                {player.confidence != null && (
+                  <Badge variant="outline" className="shrink-0">
+                    {Math.round(player.confidence * 100)}%
+                  </Badge>
+                )}
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isMine ? "default" : "outline"}
+                  onClick={() => onChooseMine(index)}
+                >
+                  This is me
+                </Button>
+                {assignment && assignedUser && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onClearAssignment(index)}
+                  >
+                    Clear {assignedUser.name}
+                  </Button>
+                )}
+              </div>
+
+              {!isMine && selectedPlayerIndex == null && (
+                <div className="mt-3 rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
+                  Choose your row before sending rows to other users.
+                </div>
+              )}
+
+              {!isMine && selectedPlayerIndex != null && (
+                <div className="mt-3">
+                  {assignment && assignedUser ? (
+                    <div className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary">
+                      Pending for {assignedUser.name}
+                    </div>
+                  ) : (
+                    <UserSearchPicker
+                      users={shareableUsers.filter((user) => !unavailableUserIds.has(user.id))}
+                      onChoose={(userId) => onAssign(index, userId)}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function UserSearchPicker({
+  users,
+  onChoose,
+}: {
+  users: ShareableUser[];
+  onChoose: (userId: string) => void;
+}) {
+  const [query, setQuery] = React.useState("");
+  const normalized = query.trim().toLowerCase();
+  const matches = users
+    .filter((user) => (normalized ? user.name.toLowerCase().includes(normalized) : true))
+    .slice(0, 5);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <UserPlus className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search app users..."
+          className="pl-9"
+        />
+      </div>
+      {matches.length > 0 ? (
+        <div className="max-h-40 overflow-y-auto rounded-lg border border-border/60">
+          {matches.map((user) => (
+            <button
+              key={user.id}
+              type="button"
+              onClick={() => onChoose(user.id)}
+              className="block w-full px-3 py-2 text-left text-sm transition-colors hover:bg-secondary/60"
+            >
+              {user.name}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
+          No available app user matches.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CourseDateBlock(props: {
   courses: CourseWithTees[];
   courseId: string;
@@ -943,6 +1239,40 @@ function applyTeePars(
   return holes;
 }
 
+function playerSummary(player: DetectedPlayer): string {
+  const complete = player.holes.filter((hole) => hole.strokes != null && !hole.illegible);
+  const total = complete.reduce((sum, hole) => sum + (hole.strokes ?? 0), 0);
+  const par = player.holes.reduce((sum, hole) => sum + hole.par, 0);
+  return `${complete.length}/${player.holes.length} holes · ${total || "-"} · par ${par}`;
+}
+
+function buildPendingRoundAssignments(
+  players: DetectedPlayer[],
+  assignments: PendingAssignment[],
+) {
+  return assignments
+    .map((assignment) => {
+      const player = players[assignment.playerIndex];
+      if (!player) return null;
+      return {
+        recipientUserId: assignment.recipientUserId,
+        scorecardPlayerName: player.playerName,
+        scorecardRowLabel: player.rowLabel,
+        rowConfidence: player.confidence,
+        rowNotes: player.notes,
+        holes: player.holes.map((hole) => ({
+          holeNumber: hole.holeNumber,
+          par: hole.par,
+          strokes: hole.strokes as number,
+          putts: hole.putts ?? null,
+          confidence: hole.confidence ?? null,
+          illegible: false,
+        })),
+      };
+    })
+    .filter((assignment): assignment is NonNullable<typeof assignment> => assignment != null);
+}
+
 function buildRoundDraft(input: RoundDraftInput): RoundDraft | null {
   if (!hasDraftContent(input)) return null;
   return {
@@ -953,6 +1283,11 @@ function buildRoundDraft(input: RoundDraftInput): RoundDraft | null {
     holes: input.holes.map((hole) => ({ ...hole })),
     sourceImages: [...input.sourceImages],
     detectedTees: input.detectedTees.map((tee) => ({ ...tee })),
+    detectedPlayers: input.detectedPlayers.map((player) => ({
+      ...player,
+      holes: player.holes.map((hole) => ({ ...hole })),
+    })),
+    pendingAssignments: input.pendingAssignments.map((assignment) => ({ ...assignment })),
   };
 }
 
@@ -962,6 +1297,10 @@ function hasDraftContent(input: RoundDraftInput): boolean {
     !!input.courseId ||
     !!input.teeId ||
     input.notes.trim().length > 0 ||
+    input.sourceImages.length > 0 ||
+    input.detectedTees.length > 0 ||
+    input.detectedPlayers.length > 0 ||
+    input.pendingAssignments.length > 0 ||
     input.holes.some((hole) => hole.strokes != null || hole.confidence != null || hole.illegible)
   );
 }
@@ -1008,6 +1347,22 @@ function parseRoundDraft(raw: string | null): RoundDraft | null {
     if (value.mode !== "ai" && value.mode !== "manual") return null;
     if (value.holeCount !== 9 && value.holeCount !== 18) return null;
     if (!Array.isArray(value.holes) || value.holes.length !== value.holeCount) return null;
+
+    const holes = parseGridHoles(value.holes, value.holeCount);
+    const detectedPlayers = parseDetectedPlayers(value.detectedPlayers);
+    const selectedPlayerIndex =
+      typeof value.selectedPlayerIndex === "number" &&
+      Number.isInteger(value.selectedPlayerIndex) &&
+      value.selectedPlayerIndex >= 0 &&
+      value.selectedPlayerIndex < detectedPlayers.length
+        ? value.selectedPlayerIndex
+        : null;
+    const pendingAssignments = parsePendingAssignments(
+      value.pendingAssignments,
+      detectedPlayers.length,
+      selectedPlayerIndex,
+    );
+
     return {
       version: 1,
       savedAt: typeof value.savedAt === "string" ? value.savedAt : new Date().toISOString(),
@@ -1020,18 +1375,7 @@ function parseRoundDraft(raw: string | null): RoundDraft | null {
           : new Date().toISOString().slice(0, 10),
       holeCount: value.holeCount,
       nineType: value.nineType === "front" || value.nineType === "back" ? value.nineType : null,
-      holes: value.holes.map((hole, index) => {
-        const item =
-          hole && typeof hole === "object" ? (hole as Partial<GridHole>) : {};
-        return {
-          holeNumber: typeof item.holeNumber === "number" ? item.holeNumber : index + 1,
-          par: typeof item.par === "number" ? item.par : 4,
-          strokes: typeof item.strokes === "number" ? item.strokes : null,
-          putts: typeof item.putts === "number" ? item.putts : null,
-          confidence: typeof item.confidence === "number" ? item.confidence : null,
-          illegible: item.illegible === true,
-        };
-      }),
+      holes,
       notes: typeof value.notes === "string" ? value.notes : "",
       sourceImages: Array.isArray(value.sourceImages)
         ? value.sourceImages.filter((item): item is string => typeof item === "string")
@@ -1055,8 +1399,82 @@ function parseRoundDraft(raw: string | null): RoundDraft | null {
         : [],
       chosenDetectedTeeName:
         typeof value.chosenDetectedTeeName === "string" ? value.chosenDetectedTeeName : null,
+      detectedPlayers,
+      selectedPlayerIndex,
+      pendingAssignments,
     };
   } catch {
     return null;
   }
+}
+
+function parseGridHoles(value: unknown, expectedLength: number): GridHole[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, expectedLength).map((hole, index) => {
+    const item = hole && typeof hole === "object" ? (hole as Partial<GridHole>) : {};
+    return {
+      holeNumber: typeof item.holeNumber === "number" ? item.holeNumber : index + 1,
+      par: typeof item.par === "number" ? item.par : 4,
+      strokes: typeof item.strokes === "number" ? item.strokes : null,
+      putts: typeof item.putts === "number" ? item.putts : null,
+      confidence: typeof item.confidence === "number" ? item.confidence : null,
+      illegible: item.illegible === true,
+    };
+  });
+}
+
+function parseDetectedPlayers(value: unknown): DetectedPlayer[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((player, index) => {
+      const item =
+        player && typeof player === "object" ? (player as Partial<DetectedPlayer>) : {};
+      if (!Array.isArray(item.holes) || (item.holes.length !== 9 && item.holes.length !== 18)) {
+        return null;
+      }
+      return {
+        playerName: typeof item.playerName === "string" ? item.playerName : null,
+        rowLabel: typeof item.rowLabel === "string" ? item.rowLabel : `Player ${index + 1}`,
+        holes: parseGridHoles(item.holes, item.holes.length),
+        confidence: typeof item.confidence === "number" ? item.confidence : null,
+        notes: typeof item.notes === "string" ? item.notes : null,
+      };
+    })
+    .filter((player): player is NonNullable<typeof player> => player != null);
+}
+
+function parsePendingAssignments(
+  value: unknown,
+  playerCount: number,
+  selectedPlayerIndex: number | null,
+): PendingAssignment[] {
+  if (!Array.isArray(value)) return [];
+  const seenPlayers = new Set<number>();
+  const seenRecipients = new Set<string>();
+  const parsed: PendingAssignment[] = [];
+
+  for (const assignment of value) {
+    const item =
+      assignment && typeof assignment === "object"
+        ? (assignment as Partial<PendingAssignment>)
+        : {};
+    if (
+      typeof item.playerIndex !== "number" ||
+      !Number.isInteger(item.playerIndex) ||
+      item.playerIndex < 0 ||
+      item.playerIndex >= playerCount ||
+      item.playerIndex === selectedPlayerIndex ||
+      typeof item.recipientUserId !== "string" ||
+      item.recipientUserId.length === 0 ||
+      seenPlayers.has(item.playerIndex) ||
+      seenRecipients.has(item.recipientUserId)
+    ) {
+      continue;
+    }
+    seenPlayers.add(item.playerIndex);
+    seenRecipients.add(item.recipientUserId);
+    parsed.push({ playerIndex: item.playerIndex, recipientUserId: item.recipientUserId });
+  }
+
+  return parsed;
 }

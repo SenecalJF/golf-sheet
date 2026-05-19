@@ -50,11 +50,77 @@ export type PublicPlayerStats = {
   };
 };
 
+export type ShareableUser = {
+  id: string;
+  name: string;
+  image: string | null;
+};
+
+export type PendingRoundSummary = {
+  id: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  date: Date;
+  holeCount: number;
+  totalStrokes: number;
+  totalPar: number;
+  scoreDiff: number | null;
+  scorecardPlayerName: string | null;
+  scorecardRowLabel: string | null;
+  createdAt: Date;
+  actedAt: Date | null;
+  course: { id: string; name: string; city: string };
+  tee: { id: string; name: string } | null;
+  sender: ShareableUser;
+  recipient: ShareableUser;
+  acceptedRoundId: string | null;
+};
+
+export async function getShareableUsers(currentUserId: string): Promise<ShareableUser[]> {
+  return prisma.user.findMany({
+    where: { id: { not: currentUserId } },
+    select: { id: true, name: true, image: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 export async function getRoundsForUser(userId: string): Promise<RoundFull[]> {
   return prisma.round.findMany({
     where: { userId },
     include: roundFullInclude,
     orderBy: { date: "desc" },
+  });
+}
+
+export async function getPendingRoundSummariesForUser(userId: string): Promise<{
+  received: PendingRoundSummary[];
+  sent: PendingRoundSummary[];
+}> {
+  const [received, sent] = await Promise.all([
+    prisma.pendingRound.findMany({
+      where: { recipientUserId: userId },
+      include: pendingRoundSummaryInclude,
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.pendingRound.findMany({
+      where: { senderUserId: userId },
+      include: pendingRoundSummaryInclude,
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  return { received, sent };
+}
+
+export async function getPendingRoundForRecipient(pendingRoundId: string, userId: string) {
+  return prisma.pendingRound.findFirst({
+    where: { id: pendingRoundId, recipientUserId: userId },
+    include: {
+      sender: { select: { id: true, name: true, image: true } },
+      recipient: { select: { id: true, name: true, image: true } },
+      course: true,
+      tee: true,
+      holes: { orderBy: { holeNumber: "asc" } },
+    },
   });
 }
 
@@ -266,4 +332,11 @@ const roundFullInclude = {
   course: true,
   tee: true,
   holes: { orderBy: { holeNumber: "asc" as const } },
+};
+
+const pendingRoundSummaryInclude = {
+  course: { select: { id: true, name: true, city: true } },
+  tee: { select: { id: true, name: true } },
+  sender: { select: { id: true, name: true, image: true } },
+  recipient: { select: { id: true, name: true, image: true } },
 };
