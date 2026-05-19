@@ -8,8 +8,10 @@ import {
   ChevronRight,
   ImagePlus,
   PenLine,
+  RotateCcw,
   Save,
   Sparkles,
+  Trash2,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -59,7 +61,31 @@ type SelectedFile = {
   previewUrl: string;
 };
 
+type RoundDraft = {
+  version: 1;
+  savedAt: string;
+  mode: "ai" | "manual";
+  courseId: string;
+  teeId: string;
+  date: string;
+  holeCount: 9 | 18;
+  nineType: "front" | "back" | null;
+  holes: GridHole[];
+  notes: string;
+  sourceImages: string[];
+  extractionModel: string | null;
+  extractionNotes: string | null;
+  detectedTees: DetectedTee[];
+  chosenDetectedTeeName: string | null;
+};
+
+type RoundDraftInput = Omit<RoundDraft, "version" | "savedAt" | "mode"> & {
+  mode: "choose" | "ai" | "manual";
+};
+
 const MAX_FILES = 6;
+const DRAFT_KEY = "golf-sheet:new-round-draft:v1";
+const DRAFT_EVENT = "golf-sheet-new-round-draft";
 
 export function NewRoundFlow({
   courses,
@@ -69,6 +95,12 @@ export function NewRoundFlow({
   aiEnabled: boolean;
 }) {
   const router = useRouter();
+  const draftSnapshot = React.useSyncExternalStore(
+    subscribeToDraft,
+    readDraftSnapshot,
+    emptyDraftSnapshot,
+  );
+  const savedDraft = React.useMemo(() => parseRoundDraft(draftSnapshot), [draftSnapshot]);
   const [mode, setMode] = React.useState<"choose" | "ai" | "manual">("choose");
   const [courseId, setCourseId] = React.useState<string>("");
   const [teeId, setTeeId] = React.useState<string>("");
@@ -106,6 +138,39 @@ export function NewRoundFlow({
       for (const item of filesRef.current) URL.revokeObjectURL(item.previewUrl);
     };
   }, []);
+
+  React.useEffect(() => {
+    const draft = buildRoundDraft({
+      mode,
+      courseId,
+      teeId,
+      date,
+      holeCount,
+      nineType,
+      holes,
+      notes,
+      sourceImages,
+      extractionModel,
+      extractionNotes,
+      detectedTees,
+      chosenDetectedTeeName,
+    });
+    if (draft) writeRoundDraft(draft);
+  }, [
+    chosenDetectedTeeName,
+    courseId,
+    date,
+    detectedTees,
+    extractionModel,
+    extractionNotes,
+    holeCount,
+    holes,
+    mode,
+    nineType,
+    notes,
+    sourceImages,
+    teeId,
+  ]);
 
   function updateCourseId(nextCourseId: string) {
     setCourseId(nextCourseId);
@@ -333,6 +398,7 @@ export function NewRoundFlow({
         throw new Error(typeof err.error === "string" ? err.error : "Save failed");
       }
       const round = await res.json();
+      clearRoundDraft();
       toast.success("Round saved");
       router.push(`/rounds/${round.id}`);
     } catch (e) {
@@ -344,9 +410,36 @@ export function NewRoundFlow({
 
   const needsTee =
     mode === "ai" ? !chosenDetectedTee && !teeId && (selectedCourse?.tees.length ?? 0) > 0 : false;
+  const completedHoles = holes.filter((h) => h.strokes != null && !h.illegible).length;
+  const hasIncompleteHoles = completedHoles !== holeCount;
+  const totalStrokes = holes.reduce((sum, h) => sum + (h.strokes ?? 0), 0);
+  const totalPar = holes.reduce((sum, h) => sum + h.par, 0);
+  const saveDisabled = submitting || !courseId || needsTee || hasIncompleteHoles;
+
+  function restoreDraft(draft: RoundDraft) {
+    setMode(draft.mode);
+    setCourseId(draft.courseId);
+    setTeeId(draft.teeId);
+    setDate(draft.date);
+    setHoleCount(draft.holeCount);
+    setNineType(draft.nineType);
+    setHoles(draft.holes);
+    setNotes(draft.notes);
+    setSourceImages(draft.sourceImages);
+    setExtractionModel(draft.extractionModel);
+    setExtractionNotes(draft.extractionNotes);
+    setDetectedTees(draft.detectedTees);
+    setChosenDetectedTeeName(draft.chosenDetectedTeeName);
+    toast.success("Unsaved round restored");
+  }
+
+  function discardDraft() {
+    clearRoundDraft();
+    toast.success("Unsaved round cleared");
+  }
 
   return (
-    <div className="space-y-8">
+    <div className={cn("space-y-8", mode !== "choose" && "pb-28 lg:pb-0")}>
       <div className="flex items-end justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-primary">New round</p>
@@ -355,55 +448,66 @@ export function NewRoundFlow({
       </div>
 
       {mode === "choose" && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <button
-            onClick={() => setMode("ai")}
-            className="group text-left"
-            disabled={!aiEnabled}
-          >
-            <Card
-              className={
-                "relative h-full overflow-hidden p-6 transition-colors " +
-                (aiEnabled
-                  ? "group-hover:border-primary/40"
-                  : "opacity-60 cursor-not-allowed")
-              }
+        <div className="space-y-4">
+          {savedDraft && (
+            <DraftRestoreCard
+              draft={savedDraft}
+              courses={courses}
+              onRestore={() => restoreDraft(savedDraft)}
+              onDiscard={discardDraft}
+            />
+          )}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setMode("ai")}
+              className="group text-left"
+              disabled={!aiEnabled}
             >
-              <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/15 blur-3xl" />
-              <div className="relative">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary">
-                    <Sparkles className="h-5 w-5" />
+              <Card
+                className={
+                  "relative h-full overflow-hidden p-6 transition-colors " +
+                  (aiEnabled
+                    ? "group-hover:border-primary/40"
+                    : "opacity-60 cursor-not-allowed")
+                }
+              >
+                <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/15 blur-3xl" />
+                <div className="relative">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <h2 className="text-lg font-semibold tracking-tight">Photo + AI</h2>
                   </div>
-                  <h2 className="text-lg font-semibold tracking-tight">Photo + AI</h2>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Take up to {MAX_FILES} pictures of your scorecard — wide shot, front 9,
+                    back 9, rating box. Claude reads it all and shows you each tee so you can
+                    pick the one you played.
+                  </p>
+                  {!aiEnabled && (
+                    <Badge variant="outline" className="mt-3 border-amber-500/40 text-amber-400">
+                      Add your Claude key in Settings
+                    </Badge>
+                  )}
+                </div>
+              </Card>
+            </button>
+
+            <button type="button" onClick={() => setMode("manual")} className="group text-left">
+              <Card className="h-full p-6 transition-colors group-hover:border-primary/40">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-foreground">
+                    <PenLine className="h-5 w-5" />
+                  </div>
+                  <h2 className="text-lg font-semibold tracking-tight">Manual entry</h2>
                 </div>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Take up to {MAX_FILES} pictures of your scorecard — wide shot, front 9,
-                  back 9, rating box. Claude reads it all and shows you each tee so you can
-                  pick the one you played.
+                  Type in your scores directly. Fast if you already have the numbers handy.
                 </p>
-                {!aiEnabled && (
-                  <Badge variant="outline" className="mt-3 border-amber-500/40 text-amber-400">
-                    Add your Claude key in Settings
-                  </Badge>
-                )}
-              </div>
-            </Card>
-          </button>
-
-          <button onClick={() => setMode("manual")} className="group text-left">
-            <Card className="h-full p-6 transition-colors group-hover:border-primary/40">
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-foreground">
-                  <PenLine className="h-5 w-5" />
-                </div>
-                <h2 className="text-lg font-semibold tracking-tight">Manual entry</h2>
-              </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Type in your scores directly. Fast if you already have the numbers handy.
-              </p>
-            </Card>
-          </button>
+              </Card>
+            </button>
+          </div>
         </div>
       )}
 
@@ -485,7 +589,11 @@ export function NewRoundFlow({
             <Button variant="ghost" onClick={() => setMode("choose")}>
               Back
             </Button>
-            <Button onClick={saveRound} disabled={submitting || !courseId || needsTee}>
+            <Button
+              onClick={saveRound}
+              disabled={saveDisabled}
+              className="hidden lg:inline-flex"
+            >
               <Save className="mr-1 h-4 w-4" /> {submitting ? "Saving..." : "Save round"}
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
@@ -497,7 +605,70 @@ export function NewRoundFlow({
           )}
         </Card>
       )}
+      {mode !== "choose" && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 px-3 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-2xl backdrop-blur-xl lg:hidden">
+          <div className="mx-auto flex max-w-7xl items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                {completedHoles}/{holeCount} holes
+              </div>
+              <div className="number-mono truncate text-lg font-semibold">
+                {totalStrokes || "—"}{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  par {totalPar}
+                </span>
+              </div>
+            </div>
+            <Button className="h-11 px-4" onClick={saveRound} disabled={saveDisabled}>
+              <Save className="mr-1 h-4 w-4" />
+              {submitting ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function DraftRestoreCard({
+  draft,
+  courses,
+  onRestore,
+  onDiscard,
+}: {
+  draft: RoundDraft;
+  courses: CourseWithTees[];
+  onRestore: () => void;
+  onDiscard: () => void;
+}) {
+  const course = courses.find((c) => c.id === draft.courseId);
+  const completed = draft.holes.filter((h) => h.strokes != null && !h.illegible).length;
+  const total = draft.holes.reduce((sum, h) => sum + (h.strokes ?? 0), 0);
+
+  return (
+    <Card className="border-primary/35 bg-primary/5 p-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <RotateCcw className="h-4 w-4 text-primary" />
+            Continue unsaved round
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {course?.name ?? "Selected course"} · {draft.date} · {completed}/
+            {draft.holeCount} holes · {total > 0 ? total : "no score"}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={onDiscard}>
+            <Trash2 className="mr-1 h-4 w-4" />
+            Discard
+          </Button>
+          <Button type="button" size="sm" onClick={onRestore}>
+            Continue
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -770,4 +941,122 @@ function applyTeePars(
     return holes.map((hole, index) => ({ ...hole, par: slice[index] ?? hole.par }));
   }
   return holes;
+}
+
+function buildRoundDraft(input: RoundDraftInput): RoundDraft | null {
+  if (!hasDraftContent(input)) return null;
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    ...input,
+    mode: input.mode === "ai" ? "ai" : "manual",
+    holes: input.holes.map((hole) => ({ ...hole })),
+    sourceImages: [...input.sourceImages],
+    detectedTees: input.detectedTees.map((tee) => ({ ...tee })),
+  };
+}
+
+function hasDraftContent(input: RoundDraftInput): boolean {
+  return (
+    input.mode !== "choose" ||
+    !!input.courseId ||
+    !!input.teeId ||
+    input.notes.trim().length > 0 ||
+    input.holes.some((hole) => hole.strokes != null || hole.confidence != null || hole.illegible)
+  );
+}
+
+function writeRoundDraft(draft: RoundDraft) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  window.dispatchEvent(new Event(DRAFT_EVENT));
+}
+
+function clearRoundDraft() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(DRAFT_KEY);
+  window.dispatchEvent(new Event(DRAFT_EVENT));
+}
+
+function subscribeToDraft(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === DRAFT_KEY) callback();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(DRAFT_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(DRAFT_EVENT, callback);
+  };
+}
+
+function readDraftSnapshot(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(DRAFT_KEY);
+}
+
+function emptyDraftSnapshot(): string | null {
+  return null;
+}
+
+function parseRoundDraft(raw: string | null): RoundDraft | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<RoundDraft>;
+    if (value.version !== 1) return null;
+    if (value.mode !== "ai" && value.mode !== "manual") return null;
+    if (value.holeCount !== 9 && value.holeCount !== 18) return null;
+    if (!Array.isArray(value.holes) || value.holes.length !== value.holeCount) return null;
+    return {
+      version: 1,
+      savedAt: typeof value.savedAt === "string" ? value.savedAt : new Date().toISOString(),
+      mode: value.mode,
+      courseId: typeof value.courseId === "string" ? value.courseId : "",
+      teeId: typeof value.teeId === "string" ? value.teeId : "",
+      date:
+        typeof value.date === "string" && value.date.length > 0
+          ? value.date
+          : new Date().toISOString().slice(0, 10),
+      holeCount: value.holeCount,
+      nineType: value.nineType === "front" || value.nineType === "back" ? value.nineType : null,
+      holes: value.holes.map((hole, index) => {
+        const item =
+          hole && typeof hole === "object" ? (hole as Partial<GridHole>) : {};
+        return {
+          holeNumber: typeof item.holeNumber === "number" ? item.holeNumber : index + 1,
+          par: typeof item.par === "number" ? item.par : 4,
+          strokes: typeof item.strokes === "number" ? item.strokes : null,
+          putts: typeof item.putts === "number" ? item.putts : null,
+          confidence: typeof item.confidence === "number" ? item.confidence : null,
+          illegible: item.illegible === true,
+        };
+      }),
+      notes: typeof value.notes === "string" ? value.notes : "",
+      sourceImages: Array.isArray(value.sourceImages)
+        ? value.sourceImages.filter((item): item is string => typeof item === "string")
+        : [],
+      extractionModel:
+        typeof value.extractionModel === "string" ? value.extractionModel : null,
+      extractionNotes:
+        typeof value.extractionNotes === "string" ? value.extractionNotes : null,
+      detectedTees: Array.isArray(value.detectedTees)
+        ? value.detectedTees.map((tee) => {
+            const item =
+              tee && typeof tee === "object" ? (tee as Partial<DetectedTee>) : {};
+            return {
+              name: typeof item.name === "string" ? item.name : null,
+              color: typeof item.color === "string" ? item.color : null,
+              rating: typeof item.rating === "number" ? item.rating : null,
+              slope: typeof item.slope === "number" ? item.slope : null,
+              yardage: typeof item.yardage === "number" ? item.yardage : null,
+            };
+          })
+        : [],
+      chosenDetectedTeeName:
+        typeof value.chosenDetectedTeeName === "string" ? value.chosenDetectedTeeName : null,
+    };
+  } catch {
+    return null;
+  }
 }

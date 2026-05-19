@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronsLeftRight } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronsLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
@@ -27,11 +27,39 @@ export function HoleScoreGrid({
   showConfidence?: boolean;
   readOnly?: boolean;
 }) {
+  const [activeIdx, setActiveIdx] = React.useState(0);
+
   const update = (idx: number, patch: Partial<GridHole>) => {
     if (!onChange) return;
     const next = [...holes];
     next[idx] = { ...next[idx], ...patch };
     onChange(next);
+  };
+
+  const safeActiveIdx =
+    holes.length > 0 ? Math.min(Math.max(activeIdx, 0), holes.length - 1) : 0;
+  const activeHole = holes[safeActiveIdx] ?? null;
+  const hasAiConfidence = holes.some((h) => h.confidence != null || h.illegible);
+  const reviewIssues = holes
+    .map((hole, idx) => ({ hole, idx }))
+    .filter(({ hole }) => hole.illegible || hole.strokes == null || (hole.confidence ?? 1) < 0.85);
+
+  const setScore = (idx: number, strokes: number | null, advance = false) => {
+    const hole = holes[idx];
+    if (!hole) return;
+    update(idx, {
+      strokes: strokes == null ? null : Math.max(1, Math.min(15, strokes)),
+      illegible: false,
+    });
+    if (advance) {
+      setActiveIdx(Math.min(idx + 1, holes.length - 1));
+    }
+  };
+
+  const setRelativeScore = (idx: number, delta: number, advance = false) => {
+    const hole = holes[idx];
+    if (!hole) return;
+    setScore(idx, hole.par + delta, advance);
   };
 
   const totalStrokes = holes.reduce((s, h) => s + (h.strokes ?? 0), 0);
@@ -72,10 +100,13 @@ export function HoleScoreGrid({
               min={1}
               max={15}
               value={h.strokes ?? ""}
+              aria-label={`Hole ${h.holeNumber} strokes`}
               placeholder={h.illegible ? "?" : ""}
               disabled={readOnly}
+              onFocus={() => setActiveIdx(idx)}
               onChange={(e) => {
                 const v = e.target.value;
+                setActiveIdx(idx);
                 update(idx, {
                   strokes: v === "" ? null : Math.max(1, Math.min(15, Number(v))),
                   illegible: v === "" ? h.illegible : false,
@@ -84,6 +115,7 @@ export function HoleScoreGrid({
               className={cn(
                 "number-mono mt-1 h-10 w-full min-w-0 px-1 text-center text-base font-semibold sm:h-11 sm:text-lg",
                 confColor,
+                !readOnly && safeActiveIdx === idx && "border-primary/70 ring-2 ring-primary/40",
               )}
             />
             {overPar != null && (
@@ -110,6 +142,7 @@ export function HoleScoreGrid({
                 max={8}
                 value={h.putts ?? ""}
                 disabled={readOnly}
+                onFocus={() => setActiveIdx(idx)}
                 onChange={(e) => {
                   const v = e.target.value;
                   update(idx, { putts: v === "" ? null : Number(v) });
@@ -163,6 +196,127 @@ export function HoleScoreGrid({
         wrap(renderRow(holes, 0))
       )}
 
+      {!readOnly && activeHole && (
+        <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 lg:hidden">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                Quick score
+              </div>
+              <div className="text-sm font-medium">
+                Hole {activeHole.holeNumber} · par {activeHole.par}
+              </div>
+            </div>
+            <div
+              className={cn(
+                "number-mono rounded-lg border border-border/60 bg-card px-3 py-1.5 text-lg font-semibold",
+                activeHole.strokes == null && "text-muted-foreground",
+              )}
+            >
+              {activeHole.strokes ?? "—"}
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {QUICK_SCORE_DELTAS.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => setRelativeScore(safeActiveIdx, item.delta, true)}
+                className={cn(
+                  "number-mono h-11 rounded-lg border border-border/70 bg-card text-sm font-semibold transition-colors active:translate-y-px",
+                  item.delta < 0
+                    ? "text-primary"
+                    : item.delta === 0
+                      ? "text-foreground"
+                      : item.delta === 1
+                        ? "text-amber-400"
+                        : "text-destructive",
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setScore(safeActiveIdx, null)}
+              className="h-11 rounded-lg border border-border/70 bg-card text-sm font-medium text-muted-foreground transition-colors active:translate-y-px"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showConfidence && !readOnly && hasAiConfidence && (
+        <div className="space-y-3 rounded-xl border border-border/60 bg-secondary/25 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              {reviewIssues.length > 0 ? (
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+              )}
+              {reviewIssues.length > 0
+                ? `${reviewIssues.length} hole${reviewIssues.length === 1 ? "" : "s"} to review`
+                : "AI read looks clean"}
+            </div>
+            <ChevronsLeftRight className="h-4 w-4 text-muted-foreground lg:hidden" />
+          </div>
+          <div className="-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
+            <div className="flex min-w-max snap-x snap-mandatory gap-2">
+              {holes.map((hole, idx) => {
+                const status = confidenceStatus(hole);
+                return (
+                  <div
+                    key={hole.holeNumber}
+                    className={cn(
+                      "w-36 snap-start rounded-xl border bg-card/70 p-3",
+                      safeActiveIdx === idx && "border-primary/60 ring-2 ring-primary/30",
+                      status.tone === "bad" && "border-destructive/50",
+                      status.tone === "warn" && "border-amber-500/50",
+                      status.tone === "good" && "border-primary/30",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setActiveIdx(idx)}
+                      className="block w-full text-left"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                          Hole {hole.holeNumber}
+                        </div>
+                        <div className={cn("text-[10px]", status.className)}>
+                          {status.label}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-baseline justify-between">
+                        <div className="text-xs text-muted-foreground">par {hole.par}</div>
+                        <div className="number-mono text-2xl font-semibold">
+                          {hole.strokes ?? "—"}
+                        </div>
+                      </div>
+                    </button>
+                    <div className="mt-2 grid grid-cols-3 gap-1">
+                      {REVIEW_SCORE_DELTAS.map((item) => (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => setRelativeScore(idx, item.delta)}
+                          className="number-mono h-8 rounded-md border border-border/60 bg-secondary/40 text-xs font-semibold active:translate-y-px"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/30 px-4 py-3">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">
           Total
@@ -195,4 +349,52 @@ export function HoleScoreGrid({
       )}
     </div>
   );
+}
+
+const QUICK_SCORE_DELTAS = [
+  { label: "-2", delta: -2 },
+  { label: "-1", delta: -1 },
+  { label: "\\", delta: 0 },
+  { label: "+1", delta: 1 },
+  { label: "+2", delta: 2 },
+  { label: "+3", delta: 3 },
+  { label: "+4", delta: 4 },
+];
+
+const REVIEW_SCORE_DELTAS = [
+  { label: "\\", delta: 0 },
+  { label: "+1", delta: 1 },
+  { label: "+2", delta: 2 },
+];
+
+function confidenceStatus(hole: GridHole): {
+  label: string;
+  tone: "good" | "warn" | "bad" | "neutral";
+  className: string;
+} {
+  if (hole.illegible || hole.strokes == null) {
+    return { label: "Fix", tone: "bad", className: "text-destructive" };
+  }
+  if (hole.confidence == null) {
+    return { label: "Manual", tone: "neutral", className: "text-muted-foreground" };
+  }
+  if (hole.confidence >= 0.85) {
+    return {
+      label: `${Math.round(hole.confidence * 100)}%`,
+      tone: "good",
+      className: "text-primary",
+    };
+  }
+  if (hole.confidence >= 0.6) {
+    return {
+      label: `${Math.round(hole.confidence * 100)}%`,
+      tone: "warn",
+      className: "text-amber-400",
+    };
+  }
+  return {
+    label: `${Math.round(hole.confidence * 100)}%`,
+    tone: "bad",
+    className: "text-destructive",
+  };
 }

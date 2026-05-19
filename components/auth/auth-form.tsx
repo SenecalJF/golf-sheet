@@ -114,7 +114,7 @@ export function AuthForm({ mode, nextPath }: { mode: AuthMode; nextPath?: string
           </div>
         )}
 
-        <Button className="w-full" disabled={busy}>
+        <Button type="submit" className="w-full" disabled={busy}>
           <LockKeyhole className="mr-1 h-4 w-4" />
           {busy
             ? isSignup
