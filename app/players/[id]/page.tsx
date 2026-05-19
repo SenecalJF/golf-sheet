@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { RoundsHeatmap } from "@/components/players/rounds-heatmap";
 import { requireUser } from "@/lib/auth-utils";
 import { getPublicPlayerStats } from "@/lib/data";
 import type { ScoreFormatSummary } from "@/lib/stats";
@@ -74,6 +75,8 @@ export default async function PlayerProfilePage({
         <FormatScoreCard label="18-hole scoring" stat={stats.scoreByFormat[18]} />
         <FormatScoreCard label="9-hole scoring" stat={stats.scoreByFormat[9]} />
       </div>
+
+      <RoundsHeatmap calendars={stats.roundCalendars} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-6">

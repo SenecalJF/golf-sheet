@@ -51,12 +51,31 @@ export type PublicPlayerStats = {
     avgScore: number | null;
     byFormat: Record<9 | 18, ScoreFormatSummary>;
   }[];
+  roundCalendars: RoundCalendar[];
   frontBack: {
     frontAvgVsPar: number | null;
     backAvgVsPar: number | null;
     avgSwing: number | null;
     backBetterOrTiedPct: number | null;
   };
+};
+
+export type RoundCalendar = {
+  year: number;
+  days: RoundCalendarDay[];
+};
+
+export type RoundCalendarDay = {
+  date: string;
+  rounds: {
+    courseName: string;
+    city: string;
+    teeName: string | null;
+    holeCount: number;
+    totalStrokes: number;
+    totalPar: number;
+    scoreDiff: number | null;
+  }[];
 };
 
 export type ShareableUser = {
@@ -250,6 +269,7 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
     },
     recentTrend: buildRecentTrend(rounds),
     mostPlayedCourses: mostPlayedCourses(rounds),
+    roundCalendars: buildRoundCalendars(rounds, year),
     frontBack: {
       frontAvgVsPar: frontBack.front.avgVsPar,
       backAvgVsPar: frontBack.back.avgVsPar,
@@ -342,6 +362,49 @@ function mostPlayedCourses(rounds: RoundFull[]): PublicPlayerStats["mostPlayedCo
     })
     .sort((a, b) => b.roundsPlayed - a.roundsPlayed || a.courseName.localeCompare(b.courseName))
     .slice(0, 5);
+}
+
+function buildRoundCalendars(rounds: RoundFull[], currentYear: number): RoundCalendar[] {
+  const years = new Set<number>([currentYear]);
+  for (const round of rounds) years.add(round.date.getFullYear());
+
+  return [...years]
+    .sort((a, b) => b - a)
+    .map((year) =>
+      buildRoundCalendar(
+        rounds.filter((round) => round.date.getFullYear() === year),
+        year,
+      ),
+    );
+}
+
+function buildRoundCalendar(rounds: RoundFull[], year: number): RoundCalendar {
+  const grouped = new Map<string, RoundCalendarDay["rounds"]>();
+  for (const round of rounds) {
+    const date = round.date.toISOString().slice(0, 10);
+    grouped.set(date, [
+      ...(grouped.get(date) ?? []),
+      {
+        courseName: round.course.name,
+        city: round.course.city,
+        teeName: round.tee?.name ?? null,
+        holeCount: round.holeCount,
+        totalStrokes: round.totalStrokes,
+        totalPar: round.totalPar,
+        scoreDiff: round.scoreDiff ?? null,
+      },
+    ]);
+  }
+
+  return {
+    year,
+    days: [...grouped.entries()]
+      .map(([date, dayRounds]) => ({
+        date,
+        rounds: dayRounds.sort((a, b) => a.courseName.localeCompare(b.courseName)),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date)),
+  };
 }
 
 function average(values: number[]): number | null {

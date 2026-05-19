@@ -15,7 +15,9 @@ export function SignOutButton({ compact = false }: { compact?: boolean }) {
     try {
       const res = await fetch("/api/auth/sign-out", {
         method: "POST",
+        headers: { "content-type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({}),
       });
       if (!res.ok) throw new Error("Sign out failed");
       router.push("/login");
