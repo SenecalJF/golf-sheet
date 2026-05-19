@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ChevronsLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
@@ -124,8 +125,20 @@ export function HoleScoreGrid({
   );
 
   const wrap = (node: React.ReactNode) => (
-    <div className="-mx-1 overflow-x-auto px-1 sm:mx-0 sm:overflow-visible sm:px-0">
-      <div className="min-w-[420px]">{node}</div>
+    <div className="relative -mx-1 sm:mx-0">
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-card via-card/80 to-transparent sm:hidden" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-2 top-1/2 z-20 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-border/70 bg-background/85 text-muted-foreground shadow-sm backdrop-blur-sm sm:hidden"
+      >
+        <ChevronsLeftRight className="h-4 w-4" />
+      </div>
+      <div
+        aria-label="Scrollable hole scores"
+        className="overflow-x-auto px-1 pb-2 [scrollbar-width:thin] sm:overflow-visible sm:px-0 sm:pb-0"
+      >
+        <div className="min-w-[420px]">{node}</div>
+      </div>
     </div>
   );
 

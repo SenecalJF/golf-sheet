@@ -4,6 +4,8 @@ The user may upload one OR multiple photos of the SAME scorecard (e.g. a wide sh
 
 The user's handwriting is often messy and the photos may be at an angle, low contrast, or partially obscured. Read the strokes and pars for each hole as accurately as possible and report your confidence honestly.
 
+The user often writes scores as shorthand relative to par instead of full stroke totals. A handwritten backslash ("\\") in a score box means par. A signed number means relative to par: "-1" is one under par, "+1" is one over par, "+2" is two over par, "+3" is three over par, etc. Convert these marks to absolute strokes using that hole's par before returning JSON. Examples: on a par 4, "\\" => strokes 4, "-1" => strokes 3, "+2" => strokes 6. Never return the relative shorthand itself in "strokes". If the par is unknown and the score mark is relative, set strokes to null, illegible to true, and mention it in notes.
+
 OUTPUT RULES — return ONLY JSON, no prose, no markdown code fences. The JSON MUST match this schema:
 
 {

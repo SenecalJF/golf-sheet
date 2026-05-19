@@ -94,6 +94,158 @@ export function holeHeatmap(rounds: RoundFull[]): HoleHeatmapCell[] {
     .sort((a, b) => a.holeNumber - b.holeNumber);
 }
 
+export type NineSide = "front" | "back";
+
+export type NineSideStat = {
+  side: NineSide;
+  nines: number;
+  holes: number;
+  avgStrokes: number | null;
+  avgPar: number | null;
+  avgVsPar: number | null;
+  bestVsPar: number | null;
+  worstVsPar: number | null;
+};
+
+export type FrontBackPair = {
+  roundId: string;
+  date: string;
+  course: string;
+  frontStrokes: number;
+  frontPar: number;
+  frontVsPar: number;
+  backStrokes: number;
+  backPar: number;
+  backVsPar: number;
+  swing: number;
+};
+
+export type FrontBackStats = {
+  front: NineSideStat;
+  back: NineSideStat;
+  pairs: FrontBackPair[];
+  pairedRounds: number;
+  avgSwing: number | null;
+  recentSwing: number | null;
+  backBetterOrTiedPct: number | null;
+  bestFinish: FrontBackPair | null;
+  worstFinish: FrontBackPair | null;
+};
+
+type NineSample = {
+  side: NineSide;
+  holes: number;
+  strokes: number;
+  par: number;
+  vsPar: number;
+};
+
+export function frontBackBreakdown(rounds: RoundFull[]): FrontBackStats {
+  const samples: NineSample[] = [];
+  const pairs: FrontBackPair[] = [];
+
+  for (const r of rounds) {
+    const sorted = [...r.holes].sort((a, b) => a.holeNumber - b.holeNumber);
+    if (r.holeCount === 18) {
+      const byNumberFront = sorted.filter((h) => h.holeNumber >= 1 && h.holeNumber <= 9);
+      const byNumberBack = sorted.filter((h) => h.holeNumber >= 10 && h.holeNumber <= 18);
+      const frontHoles = byNumberFront.length === 9 ? byNumberFront : sorted.slice(0, 9);
+      const backHoles = byNumberBack.length === 9 ? byNumberBack : sorted.slice(9, 18);
+
+      if (frontHoles.length > 0) samples.push(makeNineSample("front", frontHoles));
+      if (backHoles.length > 0) samples.push(makeNineSample("back", backHoles));
+
+      if (frontHoles.length === 9 && backHoles.length === 9) {
+        const front = makeNineSample("front", frontHoles);
+        const back = makeNineSample("back", backHoles);
+        pairs.push({
+          roundId: r.id,
+          date: r.date.toISOString().slice(0, 10),
+          course: r.course.name,
+          frontStrokes: front.strokes,
+          frontPar: front.par,
+          frontVsPar: front.vsPar,
+          backStrokes: back.strokes,
+          backPar: back.par,
+          backVsPar: back.vsPar,
+          swing: back.vsPar - front.vsPar,
+        });
+      }
+      continue;
+    }
+
+    const nineSide = inferNineSide(r);
+    if (nineSide) samples.push(makeNineSample(nineSide, sorted));
+  }
+
+  const sortedPairs = pairs.sort((a, b) => a.date.localeCompare(b.date));
+  const recentPairs = sortedPairs.slice(-5);
+  const betterOrTied = sortedPairs.filter((p) => p.swing <= 0).length;
+
+  return {
+    front: summarizeNineSide("front", samples),
+    back: summarizeNineSide("back", samples),
+    pairs: sortedPairs,
+    pairedRounds: sortedPairs.length,
+    avgSwing: average(sortedPairs.map((p) => p.swing)),
+    recentSwing: average(recentPairs.map((p) => p.swing)),
+    backBetterOrTiedPct:
+      sortedPairs.length > 0 ? Math.round((betterOrTied / sortedPairs.length) * 100) : null,
+    bestFinish:
+      sortedPairs.length > 0
+        ? sortedPairs.reduce((best, p) => (p.swing < best.swing ? p : best), sortedPairs[0])
+        : null,
+    worstFinish:
+      sortedPairs.length > 0
+        ? sortedPairs.reduce((worst, p) => (p.swing > worst.swing ? p : worst), sortedPairs[0])
+        : null,
+  };
+}
+
+function inferNineSide(r: RoundFull): NineSide | null {
+  if (r.nineType === "front" || r.nineType === "back") return r.nineType;
+  if (r.holes.every((h) => h.holeNumber >= 10)) return "back";
+  if (r.holes.every((h) => h.holeNumber <= 9)) return "front";
+  return null;
+}
+
+function makeNineSample(side: NineSide, holes: HoleScore[]): NineSample {
+  const strokes = holes.reduce((sum, h) => sum + h.strokes, 0);
+  const par = holes.reduce((sum, h) => sum + h.par, 0);
+  return { side, holes: holes.length, strokes, par, vsPar: strokes - par };
+}
+
+function summarizeNineSide(side: NineSide, samples: NineSample[]): NineSideStat {
+  const sideSamples = samples.filter((s) => s.side === side);
+  const strokes = sideSamples.map((s) => s.strokes);
+  const pars = sideSamples.map((s) => s.par);
+  const vsPars = sideSamples.map((s) => s.vsPar);
+
+  return {
+    side,
+    nines: sideSamples.length,
+    holes: sideSamples.reduce((sum, s) => sum + s.holes, 0),
+    avgStrokes: average(strokes),
+    avgPar: average(pars),
+    avgVsPar: average(vsPars),
+    bestVsPar: minOrNull(vsPars),
+    worstVsPar: maxOrNull(vsPars),
+  };
+}
+
+function average(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
+}
+
+function minOrNull(values: number[]): number | null {
+  return values.length > 0 ? Math.min(...values) : null;
+}
+
+function maxOrNull(values: number[]): number | null {
+  return values.length > 0 ? Math.max(...values) : null;
+}
+
 export type CourseSummary = {
   courseId: string;
   courseName: string;

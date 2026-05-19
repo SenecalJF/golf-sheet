@@ -10,12 +10,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BarChart3, Flame, Sparkles, TrendingUp } from "lucide-react";
+import { BarChart3, Flame, GitCompareArrows, Sparkles, TrendingUp } from "lucide-react";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { ParTypeChart } from "@/components/analytics/par-type-chart";
 import { HoleHeatmap } from "@/components/analytics/hole-heatmap";
 import { AiInsightsPanel } from "@/components/analytics/ai-insights-panel";
-import { buildTrend, parTypeBreakdown, holeHeatmap, type RoundFull } from "@/lib/stats";
+import { FrontBackPanel } from "@/components/analytics/front-back-panel";
+import {
+  buildTrend,
+  parTypeBreakdown,
+  holeHeatmap,
+  frontBackBreakdown,
+  type RoundFull,
+} from "@/lib/stats";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
 import type { Course } from "@prisma/client";
 
@@ -35,6 +42,7 @@ export function AnalyticsView({
   const trend = buildTrend(filtered);
   const parStats = parTypeBreakdown(filtered);
   const heatmap = holeHeatmap(filtered);
+  const frontBack = frontBackBreakdown(filtered);
 
   const scoring = filtered.map((r) => ({
     id: r.id,
@@ -91,25 +99,39 @@ export function AnalyticsView({
       </div>
 
       <Tabs defaultValue="trend">
-        <TabsList>
-          <TabsTrigger value="trend">
-            <TrendingUp className="mr-1 h-4 w-4" /> Trend
-          </TabsTrigger>
-          <TabsTrigger value="par">
-            <BarChart3 className="mr-1 h-4 w-4" /> Par type
-          </TabsTrigger>
-          <TabsTrigger value="heat">
-            <Flame className="mr-1 h-4 w-4" /> Hole heatmap
-          </TabsTrigger>
-          <TabsTrigger value="ai">
-            <Sparkles className="mr-1 h-4 w-4" /> AI insights
-          </TabsTrigger>
-        </TabsList>
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <TabsList className="min-w-max">
+            <TabsTrigger value="trend">
+              <TrendingUp className="mr-1 h-4 w-4" /> Trend
+            </TabsTrigger>
+            <TabsTrigger value="front-back">
+              <GitCompareArrows className="mr-1 h-4 w-4" /> Front/back
+            </TabsTrigger>
+            <TabsTrigger value="par">
+              <BarChart3 className="mr-1 h-4 w-4" /> Par type
+            </TabsTrigger>
+            <TabsTrigger value="heat">
+              <Flame className="mr-1 h-4 w-4" /> Hole heatmap
+            </TabsTrigger>
+            <TabsTrigger value="ai">
+              <Sparkles className="mr-1 h-4 w-4" /> AI insights
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="trend" className="mt-6">
           <Card className="p-6">
             <h3 className="mb-4 text-base font-semibold tracking-tight">Score trend</h3>
             <TrendChart trend={trend} handicap={index} />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="front-back" className="mt-6">
+          <Card className="p-6">
+            <h3 className="mb-4 text-base font-semibold tracking-tight">
+              Front 9 vs back 9
+            </h3>
+            <FrontBackPanel stats={frontBack} />
           </Card>
         </TabsContent>
 
