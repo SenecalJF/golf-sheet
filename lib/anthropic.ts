@@ -10,6 +10,10 @@ export type ModelKey = keyof typeof MODELS;
 
 let client: Anthropic | null = null;
 
+export function createAnthropic(apiKey: string): Anthropic {
+  return new Anthropic({ apiKey });
+}
+
 export function getAnthropic(): Anthropic {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
@@ -17,7 +21,7 @@ export function getAnthropic(): Anthropic {
     );
   }
   if (!client) {
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    client = createAnthropic(process.env.ANTHROPIC_API_KEY);
   }
   return client;
 }

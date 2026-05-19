@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { RoundInputSchema } from "@/lib/types";
 import { computeScoreDifferential } from "@/lib/handicap";
+import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
 
 export async function GET() {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+
   const rounds = await prisma.round.findMany({
+    where: { userId: user.id },
     include: {
       course: true,
       tee: true,
@@ -16,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+
   const body = await req.json();
   const parsed = RoundInputSchema.safeParse(body);
   if (!parsed.success) {
@@ -60,6 +68,7 @@ export async function POST(req: Request) {
 
   const round = await prisma.round.create({
     data: {
+      userId: user.id,
       courseId: d.courseId,
       teeId: d.teeId ?? null,
       date: new Date(d.date),

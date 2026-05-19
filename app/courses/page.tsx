@@ -2,19 +2,15 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Flag, MapPin, Plus, Info } from "lucide-react";
-import { prisma } from "@/lib/db";
 import { AddCourseDialog } from "@/components/courses/add-course-dialog";
+import { requireUser } from "@/lib/auth-utils";
+import { getSharedCoursesWithUserCounts } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function CoursesPage() {
-  const courses = await prisma.course.findMany({
-    include: {
-      tees: true,
-      _count: { select: { rounds: true } },
-    },
-    orderBy: { name: "asc" },
-  });
+  const user = await requireUser();
+  const courses = await getSharedCoursesWithUserCounts(user.id);
 
   return (
     <div className="space-y-8">
@@ -25,8 +21,7 @@ export default async function CoursesPage() {
             {courses.length} courses across Quebec
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Rating + slope are optional — the AI can read them from a scorecard photo when
-            you log a round, or you can enter them by hand here.
+            Rating + slope are shared. Your round counts stay private to your account.
           </p>
         </div>
         <AddCourseDialog

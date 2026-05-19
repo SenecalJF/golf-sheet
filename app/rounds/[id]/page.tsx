@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, MapPin } from "lucide-react";
-import { prisma } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HoleScoreGrid } from "@/components/rounds/hole-score-grid";
 import { RoundDeleteButton } from "@/components/rounds/round-delete-button";
 import { format } from "date-fns";
+import { requireUser } from "@/lib/auth-utils";
+import { getRoundForUser } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,8 @@ export default async function RoundDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const r = await prisma.round.findUnique({
-    where: { id },
-    include: { course: true, tee: true, holes: { orderBy: { holeNumber: "asc" } } },
-  });
+  const user = await requireUser();
+  const r = await getRoundForUser(id, user.id);
   if (!r) notFound();
   const over = r.totalStrokes - r.totalPar;
 

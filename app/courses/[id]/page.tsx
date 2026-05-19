@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Flag, MapPin } from "lucide-react";
-import { prisma } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TeeEditor } from "@/components/courses/tee-editor";
 import { format } from "date-fns";
+import { requireUser } from "@/lib/auth-utils";
+import { getSharedCourseForUser } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +17,8 @@ export default async function CourseDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const course = await prisma.course.findUnique({
-    where: { id },
-    include: {
-      tees: { orderBy: { name: "asc" } },
-      rounds: {
-        include: { tee: true, holes: { orderBy: { holeNumber: "asc" } } },
-        orderBy: { date: "desc" },
-      },
-    },
-  });
+  const user = await requireUser();
+  const course = await getSharedCourseForUser(id, user.id);
   if (!course) notFound();
 
   const totalRounds = course.rounds.length;
@@ -78,7 +71,9 @@ export default async function CourseDetail({
       <TeeEditor courseId={course.id} tees={course.tees} />
 
       <Card className="p-6">
-        <h2 className="mb-4 text-base font-semibold tracking-tight">Rounds at this course</h2>
+        <h2 className="mb-4 text-base font-semibold tracking-tight">
+          Your rounds at this course
+        </h2>
         {course.rounds.length === 0 ? (
           <p className="text-sm text-muted-foreground">No rounds yet at this course.</p>
         ) : (

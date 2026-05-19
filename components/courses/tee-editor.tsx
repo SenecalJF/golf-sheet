@@ -99,15 +99,12 @@ function TeeForm({ courseId, tee }: { courseId: string; tee: TeeRow }) {
   const [rating9B, setRating9B] = React.useState(tee.rating9B?.toString() ?? "");
   const [slope9B, setSlope9B] = React.useState(tee.slope9B?.toString() ?? "");
 
-  React.useEffect(() => {
-    setPars((prev) => {
-      if (prev.length === holeCount) return prev;
-      if (holeCount === 18 && prev.length === 9) return [...prev, ...prev];
-      return prev.slice(0, holeCount).concat(Array(Math.max(0, holeCount - prev.length)).fill(4));
-    });
-  }, [holeCount]);
-
   const totalPar = pars.reduce((s, p) => s + p, 0);
+
+  function updateHoleCount(nextHoleCount: 9 | 18) {
+    setHoleCount(nextHoleCount);
+    setPars((prev) => resizePars(prev, nextHoleCount));
+  }
 
   async function save() {
     setBusy(true);
@@ -178,7 +175,7 @@ function TeeForm({ courseId, tee }: { courseId: string; tee: TeeRow }) {
                 type="button"
                 variant={holeCount === n ? "default" : "outline"}
                 size="sm"
-                onClick={() => setHoleCount(n)}
+                onClick={() => updateHoleCount(n)}
               >
                 {n}
               </Button>
@@ -282,4 +279,10 @@ function TeeForm({ courseId, tee }: { courseId: string; tee: TeeRow }) {
       </div>
     </div>
   );
+}
+
+function resizePars(pars: number[], holeCount: 9 | 18): number[] {
+  if (pars.length === holeCount) return pars;
+  if (holeCount === 18 && pars.length === 9) return [...pars, ...pars];
+  return pars.slice(0, holeCount).concat(Array(Math.max(0, holeCount - pars.length)).fill(4));
 }

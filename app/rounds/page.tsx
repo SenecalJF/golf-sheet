@@ -3,16 +3,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Calendar, MapPin } from "lucide-react";
-import { prisma } from "@/lib/db";
 import { format } from "date-fns";
+import { requireUser } from "@/lib/auth-utils";
+import { getRoundsForUser } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function RoundsPage() {
-  const rounds = await prisma.round.findMany({
-    include: { course: true, tee: true },
-    orderBy: { date: "desc" },
-  });
+  const user = await requireUser();
+  const rounds = await getRoundsForUser(user.id);
 
   return (
     <div className="space-y-8">

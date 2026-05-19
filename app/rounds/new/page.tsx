@@ -1,13 +1,15 @@
-import { prisma } from "@/lib/db";
 import { NewRoundFlow } from "@/components/rounds/new-round-flow";
-import { hasApiKey } from "@/lib/anthropic";
+import { requireUser } from "@/lib/auth-utils";
+import { getCoursesForNewRound } from "@/lib/data";
+import { getAnthropicKeyStatus } from "@/lib/user-secrets";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewRoundPage() {
-  const courses = await prisma.course.findMany({
-    include: { tees: { orderBy: { name: "asc" } } },
-    orderBy: { name: "asc" },
-  });
-  return <NewRoundFlow courses={courses} aiEnabled={hasApiKey()} />;
+  const user = await requireUser();
+  const [courses, keyStatus] = await Promise.all([
+    getCoursesForNewRound(),
+    getAnthropicKeyStatus(user.id),
+  ]);
+  return <NewRoundFlow courses={courses} aiEnabled={keyStatus.configured} />;
 }

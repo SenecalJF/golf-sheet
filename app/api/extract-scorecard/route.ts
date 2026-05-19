@@ -3,9 +3,11 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
-import { getAnthropic, MODELS, type ModelKey } from "@/lib/anthropic";
+import { MODELS, type ModelKey } from "@/lib/anthropic";
 import { SCORECARD_SYSTEM_PROMPT, buildHintsText } from "@/lib/scorecard-prompt";
 import { ExtractedScorecardSchema, parsePars } from "@/lib/types";
+import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
+import { getAnthropicForUser } from "@/lib/user-secrets";
 
 export const runtime = "nodejs";
 // Claude vision OCR on multiple photos can take 15-30s; Vercel Hobby allows up to 60s.
@@ -84,6 +86,9 @@ const SCORECARD_OUTPUT_FORMAT = {
 };
 
 export async function POST(req: Request) {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+
   let form: FormData;
   try {
     form = await req.formData();
@@ -181,7 +186,7 @@ export async function POST(req: Request) {
 
   let anthropic;
   try {
-    anthropic = getAnthropic();
+    anthropic = await getAnthropicForUser(user.id);
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Anthropic not configured" },

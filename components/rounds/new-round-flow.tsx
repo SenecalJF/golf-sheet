@@ -10,7 +10,6 @@ import {
   PenLine,
   Save,
   Sparkles,
-  Trash2,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -55,6 +54,11 @@ type DetectedTee = {
   yardage: number | null;
 };
 
+type SelectedFile = {
+  file: File;
+  previewUrl: string;
+};
+
 const MAX_FILES = 6;
 
 export function NewRoundFlow({
@@ -78,12 +82,12 @@ export function NewRoundFlow({
   const [extracting, setExtracting] = React.useState(false);
   const [extractionModel, setExtractionModel] = React.useState<string | null>(null);
   const [extractionNotes, setExtractionNotes] = React.useState<string | null>(null);
-  const [files, setFiles] = React.useState<File[]>([]);
-  const [filePreviews, setFilePreviews] = React.useState<string[]>([]);
+  const [files, setFiles] = React.useState<SelectedFile[]>([]);
   const [detectedTees, setDetectedTees] = React.useState<DetectedTee[]>([]);
   const [chosenDetectedTeeName, setChosenDetectedTeeName] = React.useState<string | null>(
     null,
   );
+  const filesRef = React.useRef<SelectedFile[]>([]);
 
   const selectedCourse = courses.find((c) => c.id === courseId);
   const selectedTee = selectedCourse?.tees.find((t) => t.id === teeId);
@@ -93,28 +97,47 @@ export function NewRoundFlow({
       (t) => (t.name ?? "").toLowerCase() === (chosenDetectedTeeName ?? "").toLowerCase(),
     ) ?? null;
 
-  // Apply selected course tee's pars to the grid (manual mode)
   React.useEffect(() => {
-    if (!selectedTee) return;
-    const pars = parsePars(selectedTee.pars);
-    if (pars.length === holeCount) {
-      setHoles((prev) => prev.map((h, i) => ({ ...h, par: pars[i] ?? h.par })));
-    } else if (holeCount === 9 && pars.length === 18) {
-      const slice = nineType === "back" ? pars.slice(9) : pars.slice(0, 9);
-      setHoles((prev) => prev.map((h, i) => ({ ...h, par: slice[i] ?? h.par })));
-    }
-  }, [selectedTee, holeCount, nineType]);
-
-  React.useEffect(() => {
-    setHoles((prev) => (prev.length === holeCount ? prev : buildBlankHoles(holeCount, prev)));
-  }, [holeCount]);
-
-  // Object-URL previews for currently selected files
-  React.useEffect(() => {
-    const urls = files.map((f) => URL.createObjectURL(f));
-    setFilePreviews(urls);
-    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+    filesRef.current = files;
   }, [files]);
+
+  React.useEffect(() => {
+    return () => {
+      for (const item of filesRef.current) URL.revokeObjectURL(item.previewUrl);
+    };
+  }, []);
+
+  function updateCourseId(nextCourseId: string) {
+    setCourseId(nextCourseId);
+    setTeeId("");
+  }
+
+  function updateTeeId(nextTeeId: string) {
+    setTeeId(nextTeeId);
+    const tee = selectedCourse?.tees.find((t) => t.id === nextTeeId);
+    if (tee) {
+      setHoles((prev) => applyTeePars(prev, tee.pars, holeCount, nineType));
+    }
+  }
+
+  function updateHoleCount(nextHoleCount: 9 | 18) {
+    const nextNineType = nextHoleCount === 18 ? null : nineType;
+    setHoleCount(nextHoleCount);
+    if (nextHoleCount === 18) setNineType(null);
+    setHoles((prev) =>
+      applyTeePars(
+        prev.length === nextHoleCount ? prev : buildBlankHoles(nextHoleCount, prev),
+        selectedTee?.pars,
+        nextHoleCount,
+        nextNineType,
+      ),
+    );
+  }
+
+  function updateNineType(nextNineType: "front" | "back" | null) {
+    setNineType(nextNineType);
+    setHoles((prev) => applyTeePars(prev, selectedTee?.pars, holeCount, nextNineType));
+  }
 
   function addFiles(picked: FileList | null) {
     if (!picked) return;
@@ -123,16 +146,22 @@ export function NewRoundFlow({
       toast.error("Pick image files only");
       return;
     }
-    setFiles((prev) => {
-      const next = [...prev, ...incoming].slice(0, MAX_FILES);
-      if (prev.length + incoming.length > MAX_FILES) {
-        toast.warning(`Keeping the first ${MAX_FILES} photos`);
-      }
-      return next;
-    });
+    const selected = incoming.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    const capacity = Math.max(0, MAX_FILES - files.length);
+    const nextFiles = selected.slice(0, capacity);
+    for (const item of selected.slice(capacity)) URL.revokeObjectURL(item.previewUrl);
+    if (selected.length > capacity) {
+      toast.warning(`Keeping the first ${MAX_FILES} photos`);
+    }
+    setFiles((prev) => [...prev, ...nextFiles]);
   }
 
   function removeFile(idx: number) {
+    const removed = files[idx];
+    if (removed) URL.revokeObjectURL(removed.previewUrl);
     setFiles((prev) => prev.filter((_, i) => i !== idx));
   }
 
@@ -143,7 +172,7 @@ export function NewRoundFlow({
     }
     setExtracting(true);
     try {
-      const resized = await Promise.all(files.map((f) => resizeImage(f)));
+      const resized = await Promise.all(files.map((item) => resizeImage(item.file)));
       const form = new FormData();
       for (const f of resized) form.append("files", f);
       if (selectedTee) form.append("expectedPars", selectedTee.pars);
@@ -355,7 +384,7 @@ export function NewRoundFlow({
                 </p>
                 {!aiEnabled && (
                   <Badge variant="outline" className="mt-3 border-amber-500/40 text-amber-400">
-                    ANTHROPIC_API_KEY missing — set it in .env.local
+                    Add your Claude key in Settings
                   </Badge>
                 )}
               </div>
@@ -383,15 +412,15 @@ export function NewRoundFlow({
           <CourseDateBlock
             courses={courses}
             courseId={courseId}
-            setCourseId={setCourseId}
+            setCourseId={updateCourseId}
             teeId={teeId}
-            setTeeId={setTeeId}
+            setTeeId={updateTeeId}
             date={date}
             setDate={setDate}
             holeCount={holeCount}
-            setHoleCount={setHoleCount}
+            setHoleCount={updateHoleCount}
             nineType={nineType}
-            setNineType={setNineType}
+            setNineType={updateNineType}
             hideTeeDropdown={mode === "ai" && detectedTees.length > 0}
           />
 
@@ -404,7 +433,7 @@ export function NewRoundFlow({
                 </span>
               </div>
 
-              <FilePicker files={files} onAdd={addFiles} onRemove={removeFile} previews={filePreviews} />
+              <FilePicker files={files} onAdd={addFiles} onRemove={removeFile} />
 
               <div className="flex flex-wrap items-center gap-2">
                 <Button onClick={extractAi} disabled={files.length === 0 || extracting}>
@@ -476,25 +505,27 @@ function FilePicker({
   files,
   onAdd,
   onRemove,
-  previews,
 }: {
-  files: File[];
+  files: SelectedFile[];
   onAdd: (f: FileList | null) => void;
   onRemove: (idx: number) => void;
-  previews: string[];
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const canAdd = files.length < MAX_FILES;
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-        {files.map((f, idx) => (
+        {files.map((item, idx) => (
           <div
             key={idx}
             className="group relative overflow-hidden rounded-lg border border-border/60 bg-card"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previews[idx]} alt={f.name} className="aspect-[3/4] w-full object-cover" />
+            <img
+              src={item.previewUrl}
+              alt={item.file.name}
+              className="aspect-[3/4] w-full object-cover"
+            />
             <button
               type="button"
               onClick={() => onRemove(idx)}
@@ -504,7 +535,7 @@ function FilePicker({
               <X className="h-4 w-4" />
             </button>
             <div className="absolute bottom-0 left-0 right-0 truncate bg-gradient-to-t from-black/70 to-transparent px-2 py-1 text-[10px] text-white">
-              {f.name}
+              {item.file.name}
             </div>
           </div>
         ))}
@@ -721,4 +752,22 @@ function buildBlankHoles(n: 9 | 18, previous?: GridHole[]): GridHole[] {
     strokes: previous?.[i]?.strokes ?? null,
     putts: previous?.[i]?.putts ?? null,
   }));
+}
+
+function applyTeePars(
+  holes: GridHole[],
+  parsString: string | undefined,
+  holeCount: 9 | 18,
+  nineType: "front" | "back" | null,
+): GridHole[] {
+  if (!parsString) return holes;
+  const pars = parsePars(parsString);
+  if (pars.length === holeCount) {
+    return holes.map((hole, index) => ({ ...hole, par: pars[index] ?? hole.par }));
+  }
+  if (holeCount === 9 && pars.length === 18) {
+    const slice = nineType === "back" ? pars.slice(9) : pars.slice(0, 9);
+    return holes.map((hole, index) => ({ ...hole, par: slice[index] ?? hole.par }));
+  }
+  return holes;
 }

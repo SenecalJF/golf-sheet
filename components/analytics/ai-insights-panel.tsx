@@ -51,7 +51,7 @@ export function AiInsightsPanel({
           <h3 className="text-base font-semibold tracking-tight">AI insights</h3>
         </div>
         <Badge variant="outline" className="border-amber-500/40 text-amber-400">
-          Set ANTHROPIC_API_KEY in .env.local to unlock
+          Add your Claude key in Settings to unlock
         </Badge>
       </div>
     );

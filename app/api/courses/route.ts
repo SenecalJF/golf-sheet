@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { CourseInputSchema } from "@/lib/types";
+import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
 
 export async function GET() {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+
   const courses = await prisma.course.findMany({
-    include: { tees: true, _count: { select: { rounds: true } } },
+    include: { tees: true, _count: { select: { rounds: { where: { userId: user.id } } } } },
     orderBy: { name: "asc" },
   });
   return NextResponse.json(courses);
 }
 
 export async function POST(req: Request) {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+
   const body = await req.json();
   const parsed = CourseInputSchema.safeParse(body);
   if (!parsed.success) {

@@ -12,6 +12,7 @@ import {
   Settings,
   Camera,
   Menu,
+  Users,
 } from "lucide-react";
 import {
   Sheet,
@@ -20,6 +21,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 
 const ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -27,6 +29,7 @@ const ITEMS = [
   { href: "/rounds/new", label: "New round", icon: Camera, accent: true },
   { href: "/courses", label: "Courses", icon: Flag },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/players", label: "Players", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -77,17 +80,32 @@ function Brand({ subtitle = true }: { subtitle?: boolean }) {
 }
 
 export function DesktopNav() {
+  const pathname = usePathname();
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
+
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border/60 bg-sidebar/60 backdrop-blur-xl lg:block">
       <div className="flex h-full flex-col p-4">
         <div className="mb-8 px-2">
           <Brand />
         </div>
-        <NavLinks />
-        <div className="mt-auto rounded-xl border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground">
-          <div className="mb-1 font-semibold text-foreground">Across Quebec</div>
-          From Montreal to Tremblant to Charlevoix. Add more on the Courses page.
-        </div>
+        {!isAuthPage && (
+          <>
+            <NavLinks />
+            <div className="mt-auto space-y-3">
+              <div className="rounded-xl border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground">
+                <div className="mb-1 font-semibold text-foreground">Across Quebec</div>
+                From Montreal to Tremblant to Charlevoix. Add more on the Courses page.
+              </div>
+              <SignOutButton />
+            </div>
+          </>
+        )}
+        {isAuthPage && (
+          <div className="mt-auto rounded-xl border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground">
+            Private invite-only golf tracking.
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -95,32 +113,37 @@ export function DesktopNav() {
 
 export function MobileTopBar() {
   const [open, setOpen] = React.useState(false);
+  const pathname = usePathname();
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl lg:hidden">
       <Brand subtitle={false} />
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger
-          render={
-            <button
-              type="button"
-              aria-label="Open menu"
-              className="grid h-9 w-9 place-items-center rounded-lg border border-border/60 bg-secondary/60 text-foreground"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-          }
-        />
-        <SheetContent side="left" className="w-72 p-0">
-          <SheetHeader className="border-b border-border/60 p-4">
-            <SheetTitle className="text-left">
-              <Brand />
-            </SheetTitle>
-          </SheetHeader>
-          <div className="p-4">
-            <NavLinks onSelect={() => setOpen(false)} />
-          </div>
-        </SheetContent>
-      </Sheet>
+      {!isAuthPage && (
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger
+            render={
+              <button
+                type="button"
+                aria-label="Open menu"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-border/60 bg-secondary/60 text-foreground"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            }
+          />
+          <SheetContent side="left" className="w-72 p-0">
+            <SheetHeader className="border-b border-border/60 p-4">
+              <SheetTitle className="text-left">
+                <Brand />
+              </SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 p-4">
+              <NavLinks onSelect={() => setOpen(false)} />
+              <SignOutButton />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </header>
   );
 }

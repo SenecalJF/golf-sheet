@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAnthropic, MODELS } from "@/lib/anthropic";
+import { MODELS } from "@/lib/anthropic";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
 import {
   buildTrend,
@@ -9,6 +9,8 @@ import {
   perCourseSummary,
   type RoundFull,
 } from "@/lib/stats";
+import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
+import { getAnthropicForUser } from "@/lib/user-secrets";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -22,10 +24,13 @@ const INSIGHTS_SYSTEM = `You are a concise, sharp golf coach reviewing a player'
 - End with one specific practice suggestion.`;
 
 export async function POST(req: Request) {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+
   const { courseId } = await req.json().catch(() => ({ courseId: null }));
 
   const rounds: RoundFull[] = await prisma.round.findMany({
-    where: courseId ? { courseId } : undefined,
+    where: courseId ? { userId: user.id, courseId } : { userId: user.id },
     include: { course: true, tee: true, holes: { orderBy: { holeNumber: "asc" } } },
     orderBy: { date: "desc" },
   });
@@ -67,7 +72,7 @@ export async function POST(req: Request) {
 
   let anthropic;
   try {
-    anthropic = getAnthropic();
+    anthropic = await getAnthropicForUser(user.id);
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "AI not configured" },
@@ -75,24 +80,32 @@ export async function POST(req: Request) {
     );
   }
 
-  const resp = await anthropic.messages.create({
-    model: MODELS.insights,
-    max_tokens: 600,
-    system: [
-      { type: "text", text: INSIGHTS_SYSTEM, cache_control: { type: "ephemeral" } },
-    ],
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Player stats (JSON):\n${JSON.stringify(summaryPayload, null, 2)}\n\nWrite the insight summary now.`,
-          },
-        ],
-      },
-    ],
-  });
+  let resp;
+  try {
+    resp = await anthropic.messages.create({
+      model: MODELS.insights,
+      max_tokens: 600,
+      system: [
+        { type: "text", text: INSIGHTS_SYSTEM, cache_control: { type: "ephemeral" } },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Player stats (JSON):\n${JSON.stringify(summaryPayload, null, 2)}\n\nWrite the insight summary now.`,
+            },
+          ],
+        },
+      ],
+    });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "AI insights failed" },
+      { status: 502 },
+    );
+  }
   const textBlock = resp.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
     return NextResponse.json({ error: "No text in AI response" }, { status: 502 });

@@ -2,16 +2,15 @@ import Link from "next/link";
 import { ArrowRight, Flag } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { prisma } from "@/lib/db";
 import { Dashboard } from "@/components/dashboard/dashboard";
+import { requireUser } from "@/lib/auth-utils";
+import { getRoundsForUser } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const rounds = await prisma.round.findMany({
-    include: { course: true, tee: true, holes: { orderBy: { holeNumber: "asc" } } },
-    orderBy: { date: "desc" },
-  });
+  const user = await requireUser();
+  const rounds = await getRoundsForUser(user.id);
 
   if (rounds.length === 0) {
     return (

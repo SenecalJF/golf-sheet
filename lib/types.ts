@@ -91,6 +91,33 @@ export const TeeInputSchema = z.object({
 export type CourseInput = z.infer<typeof CourseInputSchema>;
 export type TeeInput = z.infer<typeof TeeInputSchema>;
 
+export const AuthSignupInputSchema = z.object({
+  name: z.string().min(2).max(80).trim(),
+  email: z.email().trim().toLowerCase(),
+  password: z.string().min(8).max(128),
+  inviteCode: z.string().min(1).max(100),
+});
+
+export const AuthLoginInputSchema = z.object({
+  email: z.email().trim().toLowerCase(),
+  password: z.string().min(8).max(128),
+});
+
+export const ProfileInputSchema = z.object({
+  name: z.string().min(2).max(80).trim(),
+});
+
+export const AnthropicKeyInputSchema = z.object({
+  apiKey: z.string().trim().min(20).max(300).refine((value) => value.startsWith("sk-ant-"), {
+    message: "Claude API keys start with sk-ant-",
+  }),
+});
+
+export type AuthSignupInput = z.infer<typeof AuthSignupInputSchema>;
+export type AuthLoginInput = z.infer<typeof AuthLoginInputSchema>;
+export type ProfileInput = z.infer<typeof ProfileInputSchema>;
+export type AnthropicKeyInput = z.infer<typeof AnthropicKeyInputSchema>;
+
 export function parsePars(pars: string): number[] {
   return pars.split(",").map((p) => Number(p.trim()));
 }

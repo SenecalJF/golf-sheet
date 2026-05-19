@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { TeeInputSchema } from "@/lib/types";
+import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+
   const { id } = await params;
   const body = await req.json();
   const parsed = TeeInputSchema.safeParse({ ...body, courseId: id });
@@ -40,6 +44,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+
   const { id: courseId } = await params;
   const body = await req.json();
   const { teeId, ...rest } = body;
