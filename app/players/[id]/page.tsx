@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth-utils";
 import { getPublicPlayerStats } from "@/lib/data";
+import type { ScoreFormatSummary } from "@/lib/stats";
 
 export const dynamic = "force-dynamic";
 
@@ -57,8 +58,21 @@ export default async function PlayerProfilePage({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={CalendarDays} label="Rounds all time" value={stats.roundsAllTime} />
         <SummaryCard icon={Flag} label="Rounds this year" value={stats.roundsThisYear} />
-        <SummaryCard icon={BarChart3} label="Average score" value={formatNumber(stats.avgScore)} />
-        <SummaryCard icon={Trophy} label="Best score" value={stats.bestScore ?? "—"} />
+        <SummaryCard
+          icon={BarChart3}
+          label="18H average"
+          value={formatNumber(stats.scoreByFormat[18].avg)}
+        />
+        <SummaryCard
+          icon={Trophy}
+          label="18H best"
+          value={formatBest(stats.scoreByFormat[18])}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <FormatScoreCard label="18-hole scoring" stat={stats.scoreByFormat[18]} />
+        <FormatScoreCard label="9-hole scoring" stat={stats.scoreByFormat[9]} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -125,11 +139,9 @@ export default async function PlayerProfilePage({
                   {course.city} · {course.roundsPlayed} round
                   {course.roundsPlayed === 1 ? "" : "s"}
                 </div>
-                <div className="number-mono mt-3 text-lg font-semibold">
-                  {formatNumber(course.avgScore)}
-                </div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Avg score
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <CourseFormatMini label="18H avg" stat={course.byFormat[18]} />
+                  <CourseFormatMini label="9H avg" stat={course.byFormat[9]} />
                 </div>
               </div>
             ))}
@@ -137,6 +149,22 @@ export default async function PlayerProfilePage({
         )}
       </Card>
     </div>
+  );
+}
+
+function FormatScoreCard({ label, stat }: { label: string; stat: ScoreFormatSummary }) {
+  return (
+    <Card className="p-6">
+      <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+        <Trophy className="h-3.5 w-3.5" /> {label}
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Metric label="Rounds" value={stat.rounds} />
+        <Metric label="Best" value={formatBest(stat)} />
+        <Metric label="Average" value={formatNumber(stat.avg)} />
+        <Metric label="Avg vs par" value={formatSigned(stat.avgOverPar)} />
+      </div>
+    </Card>
   );
 }
 
@@ -168,6 +196,20 @@ function Metric({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+function CourseFormatMini({ label, stat }: { label: string; stat: ScoreFormatSummary }) {
+  return (
+    <div className="rounded-lg border border-border/50 bg-card/50 px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="number-mono mt-1 text-base font-semibold">
+        {formatNumber(stat.avg)}
+      </div>
+      <div className="mt-0.5 text-[10px] text-muted-foreground">
+        {stat.rounds} round{stat.rounds === 1 ? "" : "s"}
+      </div>
+    </div>
+  );
+}
+
 function formatNumber(value: number | null): string {
   return value == null ? "—" : value.toFixed(1);
 }
@@ -175,4 +217,10 @@ function formatNumber(value: number | null): string {
 function formatSigned(value: number | null): string {
   if (value == null) return "—";
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}`;
+}
+
+function formatBest(stat: ScoreFormatSummary): string {
+  if (stat.best == null) return "—";
+  if (stat.bestOverPar == null) return String(stat.best);
+  return `${stat.best} (${stat.bestOverPar >= 0 ? "+" : ""}${stat.bestOverPar})`;
 }

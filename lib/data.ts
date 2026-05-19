@@ -3,9 +3,15 @@ import "server-only";
 import type { User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
-import { frontBackBreakdown, type RoundFull } from "@/lib/stats";
+import {
+  frontBackBreakdown,
+  summarizeScoreFormat,
+  type RoundFull,
+  type ScoreFormatSummary,
+} from "@/lib/stats";
 
 export type LeaderboardPeriod = "all-time" | "this-year" | "last-5";
+export type LeaderboardFormat = "all" | "18" | "9";
 
 export type PlayerLeaderboardStats = {
   rounds: number;
@@ -13,6 +19,7 @@ export type PlayerLeaderboardStats = {
   avgVsPar: number | null;
   bestScore: number | null;
   bestDifferential: number | null;
+  byFormat: Record<9 | 18, ScoreFormatSummary>;
 };
 
 export type PublicPlayerStats = {
@@ -28,6 +35,7 @@ export type PublicPlayerStats = {
   avgVsPar: number | null;
   bestScore: number | null;
   bestDifferential: number | null;
+  scoreByFormat: Record<9 | 18, ScoreFormatSummary>;
   leaderboard: Record<LeaderboardPeriod, PlayerLeaderboardStats>;
   recentTrend: {
     recentAvgVsPar: number | null;
@@ -41,6 +49,7 @@ export type PublicPlayerStats = {
     city: string;
     roundsPlayed: number;
     avgScore: number | null;
+    byFormat: Record<9 | 18, ScoreFormatSummary>;
   }[];
   frontBack: {
     frontAvgVsPar: number | null;
@@ -230,6 +239,10 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
     avgVsPar: average(vsPars),
     bestScore: scores.length > 0 ? Math.min(...scores) : null,
     bestDifferential: diffs.length > 0 ? Math.min(...diffs) : null,
+    scoreByFormat: {
+      18: summarizeScoreFormat(rounds, 18),
+      9: summarizeScoreFormat(rounds, 9),
+    },
     leaderboard: {
       "all-time": buildLeaderboardStats(rounds),
       "this-year": buildLeaderboardStats(currentYearRounds),
@@ -259,6 +272,10 @@ function buildLeaderboardStats(rounds: RoundFull[]): PlayerLeaderboardStats {
     avgVsPar: average(vsPars),
     bestScore: scores.length > 0 ? Math.min(...scores) : null,
     bestDifferential: diffs.length > 0 ? Math.min(...diffs) : null,
+    byFormat: {
+      18: summarizeScoreFormat(rounds, 18),
+      9: summarizeScoreFormat(rounds, 9),
+    },
   };
 }
 
@@ -317,6 +334,10 @@ function mostPlayedCourses(rounds: RoundFull[]): PublicPlayerStats["mostPlayedCo
         city: first.course.city,
         roundsPlayed: courseRounds.length,
         avgScore: average(courseRounds.map((round) => round.totalStrokes)),
+        byFormat: {
+          18: summarizeScoreFormat(courseRounds, 18),
+          9: summarizeScoreFormat(courseRounds, 9),
+        },
       };
     })
     .sort((a, b) => b.roundsPlayed - a.roundsPlayed || a.courseName.localeCompare(b.courseName))
