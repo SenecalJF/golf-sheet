@@ -13,6 +13,75 @@ export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 const MAX_FILES = 6;
+const SCORECARD_OUTPUT_FORMAT = {
+  type: "json_schema" as const,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "holeCount",
+      "nineType",
+      "holes",
+      "pars",
+      "tees",
+      "playerTeeName",
+      "courseNameGuess",
+      "dateGuess",
+      "notes",
+    ],
+    properties: {
+      holeCount: { type: "integer", enum: [9, 18] },
+      nineType: { anyOf: [{ enum: ["front", "back"] }, { type: "null" }] },
+      holes: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["hole", "par", "strokes", "confidence", "illegible"],
+          properties: {
+            hole: { type: "integer" },
+            par: {
+              anyOf: [{ type: "integer" }, { type: "null" }],
+            },
+            strokes: {
+              anyOf: [{ type: "integer" }, { type: "null" }],
+            },
+            confidence: { type: "number" },
+            illegible: { type: "boolean" },
+          },
+        },
+      },
+      pars: {
+        anyOf: [
+          {
+            type: "array",
+            items: { type: "integer" },
+          },
+          { type: "null" },
+        ],
+      },
+      tees: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["name", "color", "rating", "slope", "yardage"],
+          properties: {
+            name: { anyOf: [{ type: "string" }, { type: "null" }] },
+            color: { anyOf: [{ type: "string" }, { type: "null" }] },
+            rating: { anyOf: [{ type: "number" }, { type: "null" }] },
+            slope: { anyOf: [{ type: "integer" }, { type: "null" }] },
+            yardage: { anyOf: [{ type: "integer" }, { type: "null" }] },
+          },
+        },
+      },
+      playerTeeName: { anyOf: [{ type: "string" }, { type: "null" }] },
+      courseNameGuess: { anyOf: [{ type: "string" }, { type: "null" }] },
+      dateGuess: { anyOf: [{ type: "string" }, { type: "null" }] },
+      notes: { anyOf: [{ type: "string" }, { type: "null" }] },
+    },
+  },
+};
 
 export async function POST(req: Request) {
   let form: FormData;
@@ -79,12 +148,27 @@ export async function POST(req: Request) {
       }
     }
 
-    const resized = await sharp(buf)
-      .rotate()
-      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 85 })
-      .toBuffer();
-    aiImagesBase64.push(resized.toString("base64"));
+    try {
+      const resized = await sharp(buf)
+        .rotate()
+        .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+      aiImagesBase64.push(resized.toString("base64"));
+    } catch (e) {
+      console.error("extract-scorecard image processing failed", {
+        fileType: file.type,
+        fileSize: file.size,
+        error: errorMessage(e),
+      });
+      return NextResponse.json(
+        {
+          error:
+            "Could not read one of those photos. Try a JPEG/PNG image or retake the photo.",
+        },
+        { status: 400 },
+      );
+    }
   }
 
   const hintsText = buildHintsText({
@@ -110,7 +194,8 @@ export async function POST(req: Request) {
   try {
     resp = await anthropic.messages.create({
       model,
-      max_tokens: 2500,
+      max_tokens: 3500,
+      output_config: { format: SCORECARD_OUTPUT_FORMAT },
       system: [
         {
           type: "text",
@@ -123,13 +208,10 @@ export async function POST(req: Request) {
           role: "user",
           content: [
             ...aiImagesBase64.map(
-              (data, idx) =>
+              (data) =>
                 ({
                   type: "image" as const,
                   source: { type: "base64" as const, media_type: "image/jpeg" as const, data },
-                  ...(aiImagesBase64.length > 1
-                    ? { cache_control: undefined }
-                    : {}),
                 }) as never,
             ),
             {
@@ -144,6 +226,11 @@ export async function POST(req: Request) {
       ],
     });
   } catch (e) {
+    console.error("extract-scorecard claude request failed", {
+      model,
+      fileCount: rawFiles.length,
+      error: errorMessage(e),
+    });
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "AI extraction failed" },
       { status: 502 },
@@ -163,6 +250,12 @@ export async function POST(req: Request) {
   try {
     parsed = ExtractedScorecardSchema.parse(JSON.parse(jsonStr));
   } catch (e) {
+    console.error("extract-scorecard parse failed", {
+      model,
+      stopReason: resp.stop_reason,
+      outputPrefix: raw.slice(0, 300),
+      error: errorMessage(e),
+    });
     return NextResponse.json(
       {
         error: "AI returned malformed JSON",
@@ -181,4 +274,8 @@ export async function POST(req: Request) {
     durationMs: Date.now() - start,
     usage: resp.usage,
   });
+}
+
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
 }
