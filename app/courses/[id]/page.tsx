@@ -68,7 +68,7 @@ export default async function CourseDetail({
         </div>
       </div>
 
-      <TeeEditor courseId={course.id} tees={course.tees} />
+      <TeeEditor courseId={course.id} tees={course.tees} canDeleteTees={user.isAdmin} />
 
       <Card className="p-6">
         <h2 className="mb-4 text-base font-semibold tracking-tight">

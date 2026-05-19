@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { TeeInputSchema } from "@/lib/types";
+import { TeeDeleteInputSchema, TeeInputSchema } from "@/lib/types";
 import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
 
 export async function POST(
@@ -73,4 +73,37 @@ export async function PATCH(
     },
   });
   return NextResponse.json(updated);
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+  if (!user.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id: courseId } = await params;
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const parsed = TeeDeleteInputSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const deleted = await prisma.tee.deleteMany({
+    where: { id: parsed.data.teeId, courseId },
+  });
+  if (deleted.count === 0) {
+    return NextResponse.json({ error: "Tee not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
 }

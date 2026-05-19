@@ -113,8 +113,13 @@ export const TeeInputSchema = z.object({
   slope9B: z.number().int().nullable().optional(),
 });
 
+export const TeeDeleteInputSchema = z.object({
+  teeId: z.string().min(1),
+});
+
 export type CourseInput = z.infer<typeof CourseInputSchema>;
 export type TeeInput = z.infer<typeof TeeInputSchema>;
+export type TeeDeleteInput = z.infer<typeof TeeDeleteInputSchema>;
 
 export const AuthSignupInputSchema = z.object({
   name: z.string().min(2).max(80).trim(),

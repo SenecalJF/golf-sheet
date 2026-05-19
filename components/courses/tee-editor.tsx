@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Save, Wand2 } from "lucide-react";
+import { Plus, Save, Trash2, Wand2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,15 @@ type TeeRow = {
   slope9B: number | null;
 };
 
-export function TeeEditor({ courseId, tees }: { courseId: string; tees: TeeRow[] }) {
+export function TeeEditor({
+  courseId,
+  tees,
+  canDeleteTees = false,
+}: {
+  courseId: string;
+  tees: TeeRow[];
+  canDeleteTees?: boolean;
+}) {
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -45,7 +53,12 @@ export function TeeEditor({ courseId, tees }: { courseId: string; tees: TeeRow[]
       ) : (
         <div className="space-y-6">
           {tees.map((tee) => (
-            <TeeForm key={tee.id} courseId={courseId} tee={tee} />
+            <TeeForm
+              key={tee.id}
+              courseId={courseId}
+              tee={tee}
+              canDelete={canDeleteTees}
+            />
           ))}
         </div>
       )}
@@ -84,9 +97,18 @@ function AddTeeButton({ courseId }: { courseId: string }) {
   );
 }
 
-function TeeForm({ courseId, tee }: { courseId: string; tee: TeeRow }) {
+function TeeForm({
+  courseId,
+  tee,
+  canDelete,
+}: {
+  courseId: string;
+  tee: TeeRow;
+  canDelete: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
   const [name, setName] = React.useState(tee.name);
   const [color, setColor] = React.useState(tee.color ?? "#ffffff");
   const [rating, setRating] = React.useState(tee.rating?.toString() ?? "");
@@ -142,6 +164,35 @@ function TeeForm({ courseId, tee }: { courseId: string; tee: TeeRow }) {
 
   function fillStandard() {
     setPars(holeCount === 9 ? [4, 4, 3, 5, 4, 4, 3, 4, 5] : [4, 4, 3, 5, 4, 4, 3, 4, 5, 4, 4, 3, 5, 4, 4, 3, 4, 5]);
+  }
+
+  async function deleteTee() {
+    if (
+      !window.confirm(
+        `Delete the ${tee.name} tee? Existing rounds keep their scores but will no longer point to this tee.`,
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/courses/${courseId}/tees`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ teeId: tee.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(typeof err.error === "string" ? err.error : "Failed to delete tee");
+      }
+      toast.success("Tee deleted");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -263,7 +314,7 @@ function TeeForm({ courseId, tee }: { courseId: string; tee: TeeRow }) {
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between">
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-xs text-muted-foreground">
           {rating && slope ? (
             <Badge variant="outline" className="border-primary/40 text-primary">
@@ -273,9 +324,23 @@ function TeeForm({ courseId, tee }: { courseId: string; tee: TeeRow }) {
             <span>Rating + slope optional — the AI can fill these from a scorecard photo.</span>
           )}
         </div>
-        <Button onClick={save} disabled={busy} size="sm">
-          <Save className="mr-1 h-4 w-4" /> Save
-        </Button>
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          {canDelete && (
+            <Button
+              type="button"
+              onClick={deleteTee}
+              disabled={busy || deleting}
+              size="sm"
+              variant="destructive"
+            >
+              <Trash2 className="mr-1 h-4 w-4" />
+              {deleting ? "Deleting..." : "Delete tee"}
+            </Button>
+          )}
+          <Button onClick={save} disabled={busy || deleting} size="sm">
+            <Save className="mr-1 h-4 w-4" /> Save
+          </Button>
+        </div>
       </div>
     </div>
   );
