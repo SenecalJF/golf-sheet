@@ -10,6 +10,10 @@ import {
   type RoundFull,
 } from "@/lib/stats";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+export const dynamic = "force-dynamic";
+
 const INSIGHTS_SYSTEM = `You are a concise, sharp golf coach reviewing a player's recent rounds.
 - Lead with the 2 most actionable patterns you see (strengths and weaknesses).
 - Cite specific numbers from the data (avg vs par, hole numbers, course names).

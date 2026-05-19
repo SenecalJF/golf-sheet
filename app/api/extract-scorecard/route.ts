@@ -8,6 +8,9 @@ import { SCORECARD_SYSTEM_PROMPT, buildHintsText } from "@/lib/scorecard-prompt"
 import { ExtractedScorecardSchema, parsePars } from "@/lib/types";
 
 export const runtime = "nodejs";
+// Claude vision OCR on multiple photos can take 15-30s; Vercel Hobby allows up to 60s.
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 const MAX_FILES = 6;
 
