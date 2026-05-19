@@ -9,6 +9,8 @@ import { ExtractedScorecardSchema, parsePars } from "@/lib/types";
 
 export const runtime = "nodejs";
 
+const MAX_FILES = 6;
+
 export async function POST(req: Request) {
   let form: FormData;
   try {
@@ -17,10 +19,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
   }
 
-  const file = form.get("file");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "file is required" }, { status: 400 });
+  // Accept either `files` (multiple) or legacy `file` (single)
+  const rawFiles: File[] = [];
+  for (const v of form.getAll("files")) {
+    if (v instanceof File) rawFiles.push(v);
   }
+  if (rawFiles.length === 0) {
+    const legacy = form.get("file");
+    if (legacy instanceof File) rawFiles.push(legacy);
+  }
+  if (rawFiles.length === 0) {
+    return NextResponse.json({ error: "At least one file is required" }, { status: 400 });
+  }
+  if (rawFiles.length > MAX_FILES) {
+    return NextResponse.json(
+      { error: `At most ${MAX_FILES} photos per scorecard` },
+      { status: 400 },
+    );
+  }
+
   const expectedParsRaw = form.get("expectedPars");
   const preferredHoleCount = form.get("preferredHoleCount");
   const modelKey = (form.get("model") as ModelKey | null) ?? "default";
@@ -35,33 +52,37 @@ export async function POST(req: Request) {
     }
   }
 
-  // Save original image to public/uploads in local dev so the round-detail
-  // page can show it. On Vercel the serverless filesystem isn't writable, so
-  // we skip persistence and only pass the bytes to the AI in-memory.
-  const buf = Buffer.from(await file.arrayBuffer());
+  // Local dev: persist originals to public/uploads so the round-detail page can show them.
+  // Vercel: serverless FS isn't writable across requests — skip persistence.
   const isServerless = !!process.env.VERCEL;
-  let savedPath: string | null = null;
-  if (!isServerless) {
-    try {
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      await fs.mkdir(uploadDir, { recursive: true });
-      const ext = (file.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
-      const filename = `${randomUUID()}.${ext}`;
-      const fullPath = path.join(uploadDir, filename);
-      await fs.writeFile(fullPath, buf);
-      savedPath = `/uploads/${filename}`;
-    } catch {
-      savedPath = null;
-    }
-  }
 
-  // For the AI: downscale to max 1600 on the long edge, convert to JPEG
-  const resized = await sharp(buf)
-    .rotate()
-    .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 88 })
-    .toBuffer();
-  const base64 = resized.toString("base64");
+  const savedPaths: string[] = [];
+  const aiImagesBase64: string[] = [];
+
+  for (const file of rawFiles) {
+    const buf = Buffer.from(await file.arrayBuffer());
+
+    if (!isServerless) {
+      try {
+        const uploadDir = path.join(process.cwd(), "public", "uploads");
+        await fs.mkdir(uploadDir, { recursive: true });
+        const ext = (file.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+        const filename = `${randomUUID()}.${ext}`;
+        const fullPath = path.join(uploadDir, filename);
+        await fs.writeFile(fullPath, buf);
+        savedPaths.push(`/uploads/${filename}`);
+      } catch {
+        // ignore
+      }
+    }
+
+    const resized = await sharp(buf)
+      .rotate()
+      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+    aiImagesBase64.push(resized.toString("base64"));
+  }
 
   const hintsText = buildHintsText({
     expectedPars,
@@ -86,7 +107,7 @@ export async function POST(req: Request) {
   try {
     resp = await anthropic.messages.create({
       model,
-      max_tokens: 2000,
+      max_tokens: 2500,
       system: [
         {
           type: "text",
@@ -98,11 +119,23 @@ export async function POST(req: Request) {
         {
           role: "user",
           content: [
+            ...aiImagesBase64.map(
+              (data, idx) =>
+                ({
+                  type: "image" as const,
+                  source: { type: "base64" as const, media_type: "image/jpeg" as const, data },
+                  ...(aiImagesBase64.length > 1
+                    ? { cache_control: undefined }
+                    : {}),
+                }) as never,
+            ),
             {
-              type: "image",
-              source: { type: "base64", media_type: "image/jpeg", data: base64 },
+              type: "text",
+              text:
+                aiImagesBase64.length > 1
+                  ? `${aiImagesBase64.length} photos of the same scorecard. Merge them.\n\n${hintsText}`
+                  : hintsText,
             },
-            { type: "text", text: hintsText },
           ],
         },
       ],
@@ -139,7 +172,8 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     extraction: parsed,
-    imagePath: savedPath,
+    imagePaths: savedPaths,
+    imagePath: savedPaths[0] ?? null, // legacy single-image field
     model,
     durationMs: Date.now() - start,
     usage: resp.usage,

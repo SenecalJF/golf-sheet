@@ -3,7 +3,17 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, ChevronRight, PenLine, Save, Sparkles, UploadCloud } from "lucide-react";
+import {
+  Camera,
+  ChevronRight,
+  ImagePlus,
+  PenLine,
+  Save,
+  Sparkles,
+  Trash2,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +30,8 @@ import {
 import { HoleScoreGrid, type GridHole } from "@/components/rounds/hole-score-grid";
 import { parsePars } from "@/lib/types";
 import type { ExtractedScorecard } from "@/lib/types";
+import { resizeImage } from "@/lib/resize-image";
+import { cn } from "@/lib/utils";
 
 type CourseWithTees = {
   id: string;
@@ -34,6 +46,16 @@ type CourseWithTees = {
     slope: number | null;
   }[];
 };
+
+type DetectedTee = {
+  name: string | null;
+  color: string | null;
+  rating: number | null;
+  slope: number | null;
+  yardage: number | null;
+};
+
+const MAX_FILES = 6;
 
 export function NewRoundFlow({
   courses,
@@ -52,85 +74,115 @@ export function NewRoundFlow({
   const [holes, setHoles] = React.useState<GridHole[]>(buildBlankHoles(18));
   const [notes, setNotes] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
-  const [sourceImage, setSourceImage] = React.useState<string | null>(null);
+  const [sourceImages, setSourceImages] = React.useState<string[]>([]);
   const [extracting, setExtracting] = React.useState(false);
   const [extractionModel, setExtractionModel] = React.useState<string | null>(null);
   const [extractionNotes, setExtractionNotes] = React.useState<string | null>(null);
-  const [file, setFile] = React.useState<File | null>(null);
-  const [extractedTee, setExtractedTee] = React.useState<{
-    name: string | null;
-    rating: number | null;
-    slope: number | null;
-    yardage: number | null;
-  } | null>(null);
+  const [files, setFiles] = React.useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = React.useState<string[]>([]);
+  const [detectedTees, setDetectedTees] = React.useState<DetectedTee[]>([]);
+  const [chosenDetectedTeeName, setChosenDetectedTeeName] = React.useState<string | null>(
+    null,
+  );
 
   const selectedCourse = courses.find((c) => c.id === courseId);
   const selectedTee = selectedCourse?.tees.find((t) => t.id === teeId);
-  const teeNeedsRating = selectedTee && (selectedTee.rating == null || selectedTee.slope == null);
-  const canPatchTee =
-    teeNeedsRating &&
-    extractedTee &&
-    (extractedTee.rating != null || extractedTee.slope != null);
 
+  const chosenDetectedTee =
+    detectedTees.find(
+      (t) => (t.name ?? "").toLowerCase() === (chosenDetectedTeeName ?? "").toLowerCase(),
+    ) ?? null;
+
+  // Apply selected course tee's pars to the grid (manual mode)
   React.useEffect(() => {
     if (!selectedTee) return;
     const pars = parsePars(selectedTee.pars);
     if (pars.length === holeCount) {
-      setHoles((prev) =>
-        prev.map((h, i) => ({ ...h, par: pars[i] ?? h.par })),
-      );
+      setHoles((prev) => prev.map((h, i) => ({ ...h, par: pars[i] ?? h.par })));
     } else if (holeCount === 9 && pars.length === 18) {
       const slice = nineType === "back" ? pars.slice(9) : pars.slice(0, 9);
-      setHoles((prev) =>
-        prev.map((h, i) => ({ ...h, par: slice[i] ?? h.par })),
-      );
+      setHoles((prev) => prev.map((h, i) => ({ ...h, par: slice[i] ?? h.par })));
     }
   }, [selectedTee, holeCount, nineType]);
 
   React.useEffect(() => {
-    setHoles((prev) => {
-      if (prev.length === holeCount) return prev;
-      return buildBlankHoles(holeCount, prev);
-    });
+    setHoles((prev) => (prev.length === holeCount ? prev : buildBlankHoles(holeCount, prev)));
   }, [holeCount]);
 
+  // Object-URL previews for currently selected files
+  React.useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setFilePreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [files]);
+
+  function addFiles(picked: FileList | null) {
+    if (!picked) return;
+    const incoming = Array.from(picked).filter((f) => f.type.startsWith("image/"));
+    if (incoming.length === 0) {
+      toast.error("Pick image files only");
+      return;
+    }
+    setFiles((prev) => {
+      const next = [...prev, ...incoming].slice(0, MAX_FILES);
+      if (prev.length + incoming.length > MAX_FILES) {
+        toast.warning(`Keeping the first ${MAX_FILES} photos`);
+      }
+      return next;
+    });
+  }
+
+  function removeFile(idx: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
+  }
+
   async function extractAi() {
-    if (!file) {
-      toast.error("Choose an image first");
+    if (files.length === 0) {
+      toast.error("Pick at least one photo first");
       return;
     }
     setExtracting(true);
     try {
+      const resized = await Promise.all(files.map((f) => resizeImage(f)));
       const form = new FormData();
-      form.append("file", file);
+      for (const f of resized) form.append("files", f);
       if (selectedTee) form.append("expectedPars", selectedTee.pars);
       form.append("preferredHoleCount", String(holeCount));
       const res = await fetch("/api/extract-scorecard", { method: "POST", body: form });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         throw new Error(typeof err.error === "string" ? err.error : "Extraction failed");
       }
       const data = (await res.json()) as {
         extraction: ExtractedScorecard;
-        imagePath: string;
+        imagePaths: string[];
         model: string;
       };
-      setSourceImage(data.imagePath);
+      setSourceImages(data.imagePaths ?? []);
       setExtractionModel(data.model);
       setExtractionNotes(data.extraction.notes ?? null);
       setHoleCount(data.extraction.holeCount);
       setNineType(data.extraction.nineType ?? null);
-      setExtractedTee(
-        data.extraction.tee
-          ? {
-              name: data.extraction.tee.name ?? null,
-              rating: data.extraction.tee.rating ?? null,
-              slope: data.extraction.tee.slope ?? null,
-              yardage: data.extraction.tee.yardage ?? null,
-            }
-          : null,
-      );
 
+      const tees: DetectedTee[] = (data.extraction.tees ?? []).map((t) => ({
+        name: t.name ?? null,
+        color: t.color ?? null,
+        rating: t.rating ?? null,
+        slope: t.slope ?? null,
+        yardage: t.yardage ?? null,
+      }));
+      setDetectedTees(tees);
+
+      const aiPlayerTee = data.extraction.playerTeeName?.trim() || null;
+      let initialPick: string | null = null;
+      if (aiPlayerTee && tees.some((t) => (t.name ?? "") === aiPlayerTee)) {
+        initialPick = aiPlayerTee;
+      } else if (tees.length === 1 && tees[0].name) {
+        initialPick = tees[0].name;
+      }
+      setChosenDetectedTeeName(initialPick);
+
+      // Apply hole scores using extracted pars (or the detected per-hole par)
       const extractedPars = data.extraction.pars ?? null;
       const fallbackPars = selectedTee ? parsePars(selectedTee.pars) : [];
       const extracted: GridHole[] = data.extraction.holes.map((h, i) => ({
@@ -141,7 +193,12 @@ export function NewRoundFlow({
         illegible: h.illegible,
       }));
       setHoles(extracted);
-      toast.success("Scorecard extracted — please review");
+
+      toast.success(
+        tees.length > 0
+          ? `Extracted scorecard + ${tees.length} tee${tees.length === 1 ? "" : "s"}`
+          : "Extracted scorecard — please review",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
@@ -149,32 +206,65 @@ export function NewRoundFlow({
     }
   }
 
-  async function applyExtractedTee() {
-    if (!selectedTee || !courseId || !extractedTee) return;
-    try {
-      const newPars = holes.map((h) => h.par).join(",");
-      const res = await fetch(`/api/courses/${courseId}/tees`, {
+  async function ensureTeeForChosen(): Promise<string | null> {
+    if (!selectedCourse) return null;
+
+    // No AI detection available — fall back to dropdown selection
+    if (!chosenDetectedTee) return teeId || null;
+
+    const detectedName = chosenDetectedTee.name?.trim();
+    if (!detectedName) return teeId || null;
+
+    // Match against existing course tees by case-insensitive name
+    const existing = selectedCourse.tees.find(
+      (t) => t.name.trim().toLowerCase() === detectedName.toLowerCase(),
+    );
+
+    const parsString = holes.map((h) => h.par).join(",");
+
+    if (existing) {
+      // Update with newly detected stats (only fields we have)
+      const res = await fetch(`/api/courses/${selectedCourse.id}/tees`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          teeId: selectedTee.id,
-          rating: extractedTee.rating ?? selectedTee.rating ?? null,
-          slope: extractedTee.slope ?? selectedTee.slope ?? null,
-          yardage: extractedTee.yardage ?? null,
-          pars: newPars,
-          holeCount: selectedTee.holeCount,
-          name: selectedTee.name,
+          teeId: existing.id,
+          name: existing.name,
+          color: chosenDetectedTee.color ?? null,
+          rating: chosenDetectedTee.rating ?? null,
+          slope: chosenDetectedTee.slope ?? null,
+          yardage: chosenDetectedTee.yardage ?? null,
+          pars: parsString,
+          holeCount: holeCount === 9 ? 18 : holeCount,
         }),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(typeof err.error === "string" ? err.error : "Failed");
+        const err = await res.json().catch(() => ({}));
+        throw new Error(typeof err.error === "string" ? err.error : "Failed to update tee");
       }
-      toast.success("Tee details saved");
-      router.refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      return existing.id;
     }
+
+    // Create a new tee for this course with the detected stats
+    const res = await fetch(`/api/courses/${selectedCourse.id}/tees`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: detectedName,
+        color: chosenDetectedTee.color ?? null,
+        rating: chosenDetectedTee.rating ?? null,
+        slope: chosenDetectedTee.slope ?? null,
+        yardage: chosenDetectedTee.yardage ?? null,
+        pars: parsString,
+        holeCount: holeCount === 9 ? 18 : holeCount,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === "string" ? err.error : "Failed to create tee");
+    }
+    const created = (await res.json()) as { id: string };
+    return created.id;
   }
 
   async function saveRound() {
@@ -184,18 +274,20 @@ export function NewRoundFlow({
     }
     setSubmitting(true);
     try {
+      const finalTeeId = await ensureTeeForChosen();
+
       const res = await fetch("/api/rounds", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           courseId,
-          teeId: teeId || null,
+          teeId: finalTeeId,
           date,
           holeCount,
           nineType: holeCount === 9 ? nineType : null,
           notes: notes || null,
           pcc: 0,
-          sourceImage,
+          sourceImage: sourceImages[0] ?? null,
           extractionModel,
           holes: holes.map((h) => ({
             holeNumber: h.holeNumber,
@@ -208,7 +300,7 @@ export function NewRoundFlow({
         }),
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         throw new Error(typeof err.error === "string" ? err.error : "Save failed");
       }
       const round = await res.json();
@@ -220,6 +312,9 @@ export function NewRoundFlow({
       setSubmitting(false);
     }
   }
+
+  const needsTee =
+    mode === "ai" ? !chosenDetectedTee && !teeId && (selectedCourse?.tees.length ?? 0) > 0 : false;
 
   return (
     <div className="space-y-8">
@@ -254,8 +349,9 @@ export function NewRoundFlow({
                   <h2 className="text-lg font-semibold tracking-tight">Photo + AI</h2>
                 </div>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Take a picture of your scorecard. Claude will read every hole and you
-                  confirm before saving. Best for messy handwriting.
+                  Take up to {MAX_FILES} pictures of your scorecard — wide shot, front 9,
+                  back 9, rating box. Claude reads it all and shows you each tee so you can
+                  pick the one you played.
                 </p>
                 {!aiEnabled && (
                   <Badge variant="outline" className="mt-3 border-amber-500/40 text-amber-400">
@@ -296,66 +392,42 @@ export function NewRoundFlow({
             setHoleCount={setHoleCount}
             nineType={nineType}
             setNineType={setNineType}
+            hideTeeDropdown={mode === "ai" && detectedTees.length > 0}
           />
 
           {mode === "ai" && (
-            <div className="space-y-3 rounded-xl border border-border/60 bg-secondary/30 p-4">
+            <div className="space-y-4 rounded-xl border border-border/60 bg-secondary/30 p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
-                <Camera className="h-4 w-4 text-primary" /> Upload scorecard photo
+                <Camera className="h-4 w-4 text-primary" /> Scorecard photos
+                <span className="ml-1 text-xs text-muted-foreground">
+                  ({files.length}/{MAX_FILES})
+                </span>
               </div>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-              <div className="flex items-center gap-2">
-                <Button onClick={extractAi} disabled={!file || extracting}>
+
+              <FilePicker files={files} onAdd={addFiles} onRemove={removeFile} previews={filePreviews} />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button onClick={extractAi} disabled={files.length === 0 || extracting}>
                   <UploadCloud className="mr-1 h-4 w-4" />
-                  {extracting ? "Extracting..." : "Extract with AI"}
+                  {extracting ? "Reading..." : "Read with AI"}
                 </Button>
                 {extractionModel && (
                   <Badge variant="outline" className="border-primary/40 text-primary">
                     Read by {extractionModel}
                   </Badge>
                 )}
+                {extractionNotes && (
+                  <p className="basis-full text-xs text-muted-foreground">
+                    AI notes: {extractionNotes}
+                  </p>
+                )}
               </div>
-              {extractionNotes && (
-                <p className="text-xs text-muted-foreground">AI notes: {extractionNotes}</p>
-              )}
-              {extractedTee && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
-                  <div className="mb-1 font-medium text-primary">
-                    AI read off the card:
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
-                    {extractedTee.name && <span>Tee: {extractedTee.name}</span>}
-                    {extractedTee.rating != null && (
-                      <span>Rating: {extractedTee.rating}</span>
-                    )}
-                    {extractedTee.slope != null && <span>Slope: {extractedTee.slope}</span>}
-                    {extractedTee.yardage != null && (
-                      <span>Yardage: {extractedTee.yardage}</span>
-                    )}
-                  </div>
-                  {canPatchTee && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="mt-2"
-                      onClick={applyExtractedTee}
-                    >
-                      Save to this tee
-                    </Button>
-                  )}
-                </div>
-              )}
-              {sourceImage && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={sourceImage}
-                  alt="Uploaded scorecard"
-                  className="max-h-80 rounded-lg border border-border/60 object-contain"
+
+              {detectedTees.length > 0 && (
+                <DetectedTeesPicker
+                  tees={detectedTees}
+                  chosen={chosenDetectedTeeName}
+                  onChoose={setChosenDetectedTeeName}
                 />
               )}
             </div>
@@ -384,13 +456,145 @@ export function NewRoundFlow({
             <Button variant="ghost" onClick={() => setMode("choose")}>
               Back
             </Button>
-            <Button onClick={saveRound} disabled={submitting || !courseId}>
+            <Button onClick={saveRound} disabled={submitting || !courseId || needsTee}>
               <Save className="mr-1 h-4 w-4" /> {submitting ? "Saving..." : "Save round"}
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
+          {needsTee && (
+            <p className="text-right text-xs text-muted-foreground">
+              Pick a tee above before saving.
+            </p>
+          )}
         </Card>
       )}
+    </div>
+  );
+}
+
+function FilePicker({
+  files,
+  onAdd,
+  onRemove,
+  previews,
+}: {
+  files: File[];
+  onAdd: (f: FileList | null) => void;
+  onRemove: (idx: number) => void;
+  previews: string[];
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const canAdd = files.length < MAX_FILES;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+        {files.map((f, idx) => (
+          <div
+            key={idx}
+            className="group relative overflow-hidden rounded-lg border border-border/60 bg-card"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previews[idx]} alt={f.name} className="aspect-[3/4] w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => onRemove(idx)}
+              aria-label="Remove photo"
+              className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-md bg-background/80 text-foreground opacity-0 transition-opacity backdrop-blur-sm group-hover:opacity-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="absolute bottom-0 left-0 right-0 truncate bg-gradient-to-t from-black/70 to-transparent px-2 py-1 text-[10px] text-white">
+              {f.name}
+            </div>
+          </div>
+        ))}
+        {canAdd && (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/80 bg-card/40 text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+          >
+            <ImagePlus className="h-6 w-6" />
+            <span className="text-xs">{files.length === 0 ? "Add photos" : "Add more"}</span>
+          </button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          onAdd(e.target.files);
+          if (e.target) e.target.value = "";
+        }}
+      />
+      <p className="text-[11px] text-muted-foreground">
+        Tip: wide shot of the whole card + close-ups of any messy sections + the
+        rating/slope box. Up to {MAX_FILES} photos.
+      </p>
+    </div>
+  );
+}
+
+function DetectedTeesPicker({
+  tees,
+  chosen,
+  onChoose,
+}: {
+  tees: DetectedTee[];
+  chosen: string | null;
+  onChoose: (name: string) => void;
+}) {
+  return (
+    <div>
+      <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+        Pick the tee you played from
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {tees.map((t, i) => {
+          const name = t.name ?? `Tee ${i + 1}`;
+          const isChosen = chosen?.toLowerCase() === (t.name ?? "").toLowerCase();
+          return (
+            <button
+              key={`${name}-${i}`}
+              type="button"
+              onClick={() => onChoose(t.name ?? name)}
+              className={cn(
+                "group flex items-start gap-3 rounded-xl border bg-card/60 p-3 text-left transition-colors",
+                isChosen
+                  ? "border-primary/60 ring-2 ring-primary/40"
+                  : "border-border/60 hover:border-primary/40",
+              )}
+            >
+              <span
+                className="mt-0.5 inline-block h-6 w-6 shrink-0 rounded-full border border-border/60"
+                style={{ background: t.color ?? "var(--secondary)" }}
+                aria-hidden
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="truncate text-sm font-semibold tracking-tight">{name}</div>
+                  {isChosen && (
+                    <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-primary">
+                      Playing
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                  {t.rating != null && <span>Rating {t.rating}</span>}
+                  {t.slope != null && <span>Slope {t.slope}</span>}
+                  {t.yardage != null && <span>{t.yardage} yd</span>}
+                  {t.rating == null && t.slope == null && t.yardage == null && (
+                    <span className="italic">No stats on card</span>
+                  )}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -407,6 +611,7 @@ function CourseDateBlock(props: {
   setHoleCount: (v: 9 | 18) => void;
   nineType: "front" | "back" | null;
   setNineType: (v: "front" | "back" | null) => void;
+  hideTeeDropdown?: boolean;
 }) {
   const course = props.courses.find((c) => c.id === props.courseId);
   return (
@@ -434,30 +639,32 @@ function CourseDateBlock(props: {
         </Select>
       </div>
 
-      <div>
-        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tee</Label>
-        <Select
-          value={props.teeId}
-          onValueChange={(v) => props.setTeeId(v ?? "")}
-          disabled={!course}
-          items={(course?.tees ?? []).map((t) => ({
-            label: `${t.name}${t.slope ? ` · slope ${t.slope}` : " · no slope yet"}`,
-            value: t.id,
-          }))}
-        >
-          <SelectTrigger className="mt-1 w-full">
-            <SelectValue placeholder="Pick a tee" />
-          </SelectTrigger>
-          <SelectContent>
-            {course?.tees.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.name}
-                {t.slope ? ` · slope ${t.slope}` : " · no slope yet"}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {!props.hideTeeDropdown && (
+        <div>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tee</Label>
+          <Select
+            value={props.teeId}
+            onValueChange={(v) => props.setTeeId(v ?? "")}
+            disabled={!course}
+            items={(course?.tees ?? []).map((t) => ({
+              label: `${t.name}${t.slope ? ` · slope ${t.slope}` : " · no slope yet"}`,
+              value: t.id,
+            }))}
+          >
+            <SelectTrigger className="mt-1 w-full">
+              <SelectValue placeholder="Pick a tee" />
+            </SelectTrigger>
+            <SelectContent>
+              {course?.tees.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                  {t.slope ? ` · slope ${t.slope}` : " · no slope yet"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div>
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Date</Label>
@@ -469,7 +676,7 @@ function CourseDateBlock(props: {
         />
       </div>
 
-      <div className="md:col-span-2">
+      <div className={props.hideTeeDropdown ? "md:col-span-2" : "md:col-span-2"}>
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Format</Label>
         <div className="mt-1 flex flex-wrap gap-2">
           {[18, 9].map((n) => (
