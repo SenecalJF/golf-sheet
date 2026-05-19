@@ -203,26 +203,62 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
             <Link
               key={c.courseId}
               href={`/courses/${c.courseId}`}
-              className="group flex items-center justify-between rounded-xl border border-border/60 bg-secondary/40 p-4 transition-colors hover:border-primary/40"
+              className="group rounded-xl border border-border/60 bg-secondary/40 p-4 transition-colors hover:border-primary/40"
             >
-              <div>
-                <div className="font-medium tracking-tight group-hover:text-primary">
-                  {c.courseName}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-medium tracking-tight group-hover:text-primary">
+                    {c.courseName}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {c.city} · {c.roundsPlayed} round{c.roundsPlayed === 1 ? "" : "s"}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {c.city} · {c.roundsPlayed} round{c.roundsPlayed === 1 ? "" : "s"}
-                </div>
+                <ArrowRight className="mt-0.5 h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
               </div>
-              <div className="text-right">
-                <div className="number-mono text-lg">{c.best}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Best
-                </div>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <CourseFormatStat label="18H best" stat={c.byFormat[18]} />
+                <CourseFormatStat label="9H best" stat={c.byFormat[9]} />
               </div>
             </Link>
           ))}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function CourseFormatStat({
+  label,
+  stat,
+}: {
+  label: string;
+  stat: { rounds: number; best: number | null; bestOverPar: number | null };
+}) {
+  return (
+    <div className="rounded-lg border border-border/50 bg-card/50 px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className="number-mono text-lg">{stat.best ?? "—"}</span>
+        {stat.bestOverPar != null && (
+          <span
+            className={
+              "text-[11px] " +
+              (stat.bestOverPar <= 0
+                ? "text-primary"
+                : stat.bestOverPar < 5
+                  ? "text-amber-400"
+                  : "text-destructive")
+            }
+          >
+            {stat.bestOverPar >= 0 ? "+" : ""}
+            {stat.bestOverPar}
+          </span>
+        )}
+      </div>
+      <div className="mt-0.5 text-[10px] text-muted-foreground">
+        {stat.rounds} round{stat.rounds === 1 ? "" : "s"}
+      </div>
     </div>
   );
 }

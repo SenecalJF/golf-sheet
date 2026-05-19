@@ -8,6 +8,7 @@ import { TeeEditor } from "@/components/courses/tee-editor";
 import { format } from "date-fns";
 import { requireUser } from "@/lib/auth-utils";
 import { getSharedCourseForUser } from "@/lib/data";
+import { summarizeScoreFormat, type ScoreFormatSummary } from "@/lib/stats";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,8 @@ export default async function CourseDetail({
   if (!course) notFound();
 
   const totalRounds = course.rounds.length;
-  const totals = course.rounds.map((r) => r.totalStrokes);
-  const best = totals.length ? Math.min(...totals) : null;
-  const avg = totals.length
-    ? Math.round((totals.reduce((s, x) => s + x, 0) / totals.length) * 10) / 10
-    : null;
+  const eighteenHoleStats = summarizeScoreFormat(course.rounds, 18);
+  const nineHoleStats = summarizeScoreFormat(course.rounds, 9);
 
   return (
     <div className="space-y-8">
@@ -51,19 +49,13 @@ export default async function CourseDetail({
               <p className="mt-3 max-w-2xl text-sm text-muted-foreground">{course.notes}</p>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3 text-right">
+          <div className="grid grid-cols-1 gap-3 text-right sm:grid-cols-3">
             <div>
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Rounds</div>
               <div className="number-mono text-2xl font-semibold">{totalRounds}</div>
             </div>
-            <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Best</div>
-              <div className="number-mono text-2xl font-semibold">{best ?? "—"}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Avg</div>
-              <div className="number-mono text-2xl font-semibold">{avg ?? "—"}</div>
-            </div>
+            <CourseHeaderStat label="18H best" stat={eighteenHoleStats} />
+            <CourseHeaderStat label="9H best" stat={nineHoleStats} />
           </div>
         </div>
       </div>
@@ -103,6 +95,26 @@ export default async function CourseDetail({
           </ul>
         )}
       </Card>
+    </div>
+  );
+}
+
+function CourseHeaderStat({
+  label,
+  stat,
+}: {
+  label: string;
+  stat: ScoreFormatSummary;
+}) {
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="number-mono text-2xl font-semibold">{stat.best ?? "—"}</div>
+      <div className="text-xs text-muted-foreground">
+        {stat.rounds === 0
+          ? "No rounds"
+          : `Avg ${stat.avg ?? "—"} · ${stat.rounds} round${stat.rounds === 1 ? "" : "s"}`}
+      </div>
     </div>
   );
 }

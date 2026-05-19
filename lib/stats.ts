@@ -251,12 +251,19 @@ export type CourseSummary = {
   courseName: string;
   city: string;
   roundsPlayed: number;
+  byFormat: Record<9 | 18, ScoreFormatSummary>;
+};
+
+export type ScoreFormatSummary = {
+  rounds: number;
   best: number | null;
   avg: number | null;
   worst: number | null;
   bestOverPar: number | null;
   avgOverPar: number | null;
 };
+
+type ScoreFormatRound = Pick<RoundFull, "holeCount" | "totalStrokes" | "totalPar">;
 
 export function perCourseSummary(rounds: RoundFull[]): CourseSummary[] {
   const grouped: Record<string, RoundFull[]> = {};
@@ -265,24 +272,47 @@ export function perCourseSummary(rounds: RoundFull[]): CourseSummary[] {
     grouped[r.courseId].push(r);
   }
   return Object.values(grouped).map((rs) => {
-    const totals = rs.map((r) => r.totalStrokes);
-    const overs = rs.map((r) => r.totalStrokes - r.totalPar);
-    const best = Math.min(...totals);
-    const worst = Math.max(...totals);
-    const avg = totals.reduce((s, x) => s + x, 0) / totals.length;
-    const bestOver = Math.min(...overs);
-    const avgOver = overs.reduce((s, x) => s + x, 0) / overs.length;
     const r0 = rs[0];
     return {
       courseId: r0.courseId,
       courseName: r0.course.name,
       city: r0.course.city,
       roundsPlayed: rs.length,
-      best,
-      worst,
-      avg: Math.round(avg * 10) / 10,
-      bestOverPar: bestOver,
-      avgOverPar: Math.round(avgOver * 10) / 10,
+      byFormat: {
+        18: summarizeScoreFormat(rs, 18),
+        9: summarizeScoreFormat(rs, 9),
+      },
     };
   });
+}
+
+export function summarizeScoreFormat(
+  rounds: ScoreFormatRound[],
+  holeCount: 9 | 18,
+): ScoreFormatSummary {
+  const filtered = rounds.filter((round) => round.holeCount === holeCount);
+  if (filtered.length === 0) {
+    return {
+      rounds: 0,
+      best: null,
+      avg: null,
+      worst: null,
+      bestOverPar: null,
+      avgOverPar: null,
+    };
+  }
+
+  const totals = filtered.map((round) => round.totalStrokes);
+  const overs = filtered.map((round) => round.totalStrokes - round.totalPar);
+  const avg = totals.reduce((sum, value) => sum + value, 0) / totals.length;
+  const avgOver = overs.reduce((sum, value) => sum + value, 0) / overs.length;
+
+  return {
+    rounds: filtered.length,
+    best: Math.min(...totals),
+    avg: Math.round(avg * 10) / 10,
+    worst: Math.max(...totals),
+    bestOverPar: Math.min(...overs),
+    avgOverPar: Math.round(avgOver * 10) / 10,
+  };
 }

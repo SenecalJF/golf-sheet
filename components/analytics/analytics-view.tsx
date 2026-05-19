@@ -21,7 +21,9 @@ import {
   parTypeBreakdown,
   holeHeatmap,
   frontBackBreakdown,
+  summarizeScoreFormat,
   type RoundFull,
+  type ScoreFormatSummary,
 } from "@/lib/stats";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
 import type { Course } from "@prisma/client";
@@ -36,8 +38,15 @@ export function AnalyticsView({
   aiEnabled: boolean;
 }) {
   const [courseId, setCourseId] = React.useState<string>("all");
-  const filtered =
+  const [holeCountFilter, setHoleCountFilter] = React.useState<"all" | "18" | "9">("all");
+  const courseFiltered =
     courseId === "all" ? rounds : rounds.filter((r) => r.courseId === courseId);
+  const filtered =
+    holeCountFilter === "all"
+      ? courseFiltered
+      : courseFiltered.filter((r) => r.holeCount === Number(holeCountFilter));
+  const eighteenHoleStats = summarizeScoreFormat(courseFiltered, 18);
+  const nineHoleStats = summarizeScoreFormat(courseFiltered, 9);
 
   const trend = buildTrend(filtered);
   const parStats = parTypeBreakdown(filtered);
@@ -74,7 +83,7 @@ export function AnalyticsView({
             {filtered.length} round{filtered.length === 1 ? "" : "s"} included.
           </p>
         </div>
-        <div className="w-64">
+        <div className="grid w-full grid-cols-1 gap-3 sm:w-auto sm:min-w-[28rem] sm:grid-cols-2">
           <Select
             value={courseId}
             onValueChange={(v) => setCourseId(v ?? "all")}
@@ -95,7 +104,32 @@ export function AnalyticsView({
               ))}
             </SelectContent>
           </Select>
+          <Select
+            value={holeCountFilter}
+            onValueChange={(v) =>
+              setHoleCountFilter(v === "18" || v === "9" ? v : "all")
+            }
+            items={[
+              { label: "All round lengths", value: "all" },
+              { label: "18 holes only", value: "18" },
+              { label: "9 holes only", value: "9" },
+            ]}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All round lengths</SelectItem>
+              <SelectItem value="18">18 holes only</SelectItem>
+              <SelectItem value="9">9 holes only</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <FormatSummaryCard label="18-hole rounds" stat={eighteenHoleStats} />
+        <FormatSummaryCard label="9-hole rounds" stat={nineHoleStats} />
       </div>
 
       <Tabs defaultValue="trend">
@@ -164,5 +198,59 @@ export function AnalyticsView({
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function FormatSummaryCard({
+  label,
+  stat,
+}: {
+  label: string;
+  stat: ScoreFormatSummary;
+}) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            {stat.rounds} round{stat.rounds === 1 ? "" : "s"}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-5 text-right">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Best
+            </div>
+            <div className="number-mono text-2xl font-semibold">{stat.best ?? "—"}</div>
+            {stat.bestOverPar != null && (
+              <div className={scoreTone(stat.bestOverPar)}>
+                {stat.bestOverPar >= 0 ? "+" : ""}
+                {stat.bestOverPar}
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Avg
+            </div>
+            <div className="number-mono text-2xl font-semibold">{stat.avg ?? "—"}</div>
+            {stat.avgOverPar != null && (
+              <div className={scoreTone(stat.avgOverPar)}>
+                {stat.avgOverPar >= 0 ? "+" : ""}
+                {stat.avgOverPar}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function scoreTone(overPar: number): string {
+  return (
+    "text-xs " +
+    (overPar <= 0 ? "text-primary" : overPar < 5 ? "text-amber-400" : "text-destructive")
   );
 }
