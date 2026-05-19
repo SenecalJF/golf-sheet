@@ -162,7 +162,7 @@ export function HoleScoreGrid({
       <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-card via-card/80 to-transparent sm:hidden" />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-2 top-1/2 z-20 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-border/70 bg-background/85 text-muted-foreground shadow-sm backdrop-blur-sm sm:hidden"
+        className="pointer-events-none absolute right-0 top-1/2 z-20 grid h-8 w-8 translate-x-2 -translate-y-1/2 place-items-center rounded-full border border-border/70 bg-background/85 text-muted-foreground shadow-sm backdrop-blur-sm sm:hidden"
       >
         <ChevronsLeftRight className="h-4 w-4" />
       </div>

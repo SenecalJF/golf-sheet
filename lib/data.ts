@@ -5,6 +5,16 @@ import { prisma } from "@/lib/db";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
 import { frontBackBreakdown, type RoundFull } from "@/lib/stats";
 
+export type LeaderboardPeriod = "all-time" | "this-year" | "last-5";
+
+export type PlayerLeaderboardStats = {
+  rounds: number;
+  avgScore: number | null;
+  avgVsPar: number | null;
+  bestScore: number | null;
+  bestDifferential: number | null;
+};
+
 export type PublicPlayerStats = {
   user: {
     id: string;
@@ -18,6 +28,7 @@ export type PublicPlayerStats = {
   avgVsPar: number | null;
   bestScore: number | null;
   bestDifferential: number | null;
+  leaderboard: Record<LeaderboardPeriod, PlayerLeaderboardStats>;
   recentTrend: {
     recentAvgVsPar: number | null;
     previousAvgVsPar: number | null;
@@ -129,7 +140,9 @@ type StatsUser = Pick<User, "id" | "name" | "image">;
 
 function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPlayerStats {
   const year = new Date().getFullYear();
-  const roundsThisYear = rounds.filter((round) => round.date.getFullYear() === year).length;
+  const chronologicalRounds = [...rounds].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const currentYearRounds = rounds.filter((round) => round.date.getFullYear() === year);
+  const roundsThisYear = currentYearRounds.length;
   const scores = rounds.map((round) => round.totalStrokes);
   const vsPars = rounds.map((round) => round.totalStrokes - round.totalPar);
   const diffs = rounds
@@ -151,6 +164,11 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
     avgVsPar: average(vsPars),
     bestScore: scores.length > 0 ? Math.min(...scores) : null,
     bestDifferential: diffs.length > 0 ? Math.min(...diffs) : null,
+    leaderboard: {
+      "all-time": buildLeaderboardStats(rounds),
+      "this-year": buildLeaderboardStats(currentYearRounds),
+      "last-5": buildLeaderboardStats(chronologicalRounds.slice(-5)),
+    },
     recentTrend: buildRecentTrend(rounds),
     mostPlayedCourses: mostPlayedCourses(rounds),
     frontBack: {
@@ -159,6 +177,22 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
       avgSwing: frontBack.avgSwing,
       backBetterOrTiedPct: frontBack.backBetterOrTiedPct,
     },
+  };
+}
+
+function buildLeaderboardStats(rounds: RoundFull[]): PlayerLeaderboardStats {
+  const scores = rounds.map((round) => round.totalStrokes);
+  const vsPars = rounds.map((round) => round.totalStrokes - round.totalPar);
+  const diffs = rounds
+    .map((round) => round.scoreDiff)
+    .filter((diff): diff is number => diff != null);
+
+  return {
+    rounds: rounds.length,
+    avgScore: average(scores),
+    avgVsPar: average(vsPars),
+    bestScore: scores.length > 0 ? Math.min(...scores) : null,
+    bestDifferential: diffs.length > 0 ? Math.min(...diffs) : null,
   };
 }
 
