@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Pencil } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +53,13 @@ export default async function RoundDetail({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-3 text-right">
+          <div className="flex flex-wrap items-center justify-end gap-3 text-right">
+            <Button asChild variant="outline">
+              <Link href={`/rounds/${r.id}/edit`}>
+                <Pencil className="mr-1 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
             <div>
               <div className="number-mono text-4xl font-semibold">{r.totalStrokes}</div>
               <div
