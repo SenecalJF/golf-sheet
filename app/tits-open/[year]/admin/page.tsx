@@ -51,6 +51,8 @@ function toEditionDto(edition: TournamentEditionFull): TournamentAdminDto {
     participants: edition.participants.map((participant) => ({
       id: participant.id,
       userId: participant.userId,
+      linkedUserName: participant.user?.name ?? null,
+      linkedUserEmail: participant.user?.email ?? null,
       displayName: participant.displayName,
       slug: participant.slug,
       nickname: participant.nickname,

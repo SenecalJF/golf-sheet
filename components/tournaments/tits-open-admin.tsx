@@ -53,6 +53,8 @@ type CourseEntryDto = {
 type ParticipantDto = {
   id: string;
   userId: string | null;
+  linkedUserName: string | null;
+  linkedUserEmail: string | null;
   displayName: string;
   slug: string;
   nickname: string | null;
@@ -145,7 +147,7 @@ export function TitsOpenAdmin({
         <div className="grid gap-3">
           {edition.participants.map((participant) => (
             <ParticipantForm
-              key={participant.id}
+              key={`${participant.id}-${participant.userId ?? "guest"}-${participant.role}`}
               editionId={edition.id}
               participant={participant}
               users={options.users}
@@ -324,10 +326,15 @@ function ParticipantForm({
             <option value="">Guest / no user</option>
             {users.map((user) => (
               <option key={user.id} value={user.id}>
-                {user.name}
+                {user.name} ({user.email})
               </option>
             ))}
           </select>
+          {participant?.linkedUserEmail && (
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Linked to {participant.linkedUserName} ({participant.linkedUserEmail})
+            </span>
+          )}
         </Field>
         <Field label="Role">
           <select name="role" className={inputClass} defaultValue={participant?.role ?? "PLAYER"}>
@@ -703,11 +710,40 @@ async function saveJson(
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    toast.error(typeof error.error === "string" ? error.error : "Save failed");
+    toast.error(formatSaveError(error));
     return;
   }
   toast.success("Saved");
   router.refresh();
+}
+
+function formatSaveError(error: unknown) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "error" in error &&
+    typeof error.error === "string"
+  ) {
+    return error.error;
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "error" in error &&
+    error.error &&
+    typeof error.error === "object" &&
+    "fieldErrors" in error.error &&
+    error.error.fieldErrors &&
+    typeof error.error.fieldErrors === "object"
+  ) {
+    const messages = Object.values(error.error.fieldErrors)
+      .flat()
+      .filter((message): message is string => typeof message === "string");
+    if (messages[0]) return messages[0];
+  }
+
+  return "Save failed";
 }
 
 async function deleteResource(url: string, router: ReturnType<typeof useRouter>) {

@@ -112,6 +112,11 @@ type TitsOpenSeedPlayer = {
   role?: "PLAYER" | "CADDIE" | "GUEST";
 };
 
+type TitsOpenSeedParticipant = {
+  id: string;
+  role: "PLAYER" | "CADDIE" | "GUEST";
+};
+
 const TITS_OPEN_PLAYERS: TitsOpenSeedPlayer[] = [
   {
     slug: "jean-francois-senecal",
@@ -404,22 +409,20 @@ async function seedTitsOpenParticipants(editionId: string) {
   const initialAdminId = initialAdminEmail
     ? users.find((user) => user.email.toLowerCase() === initialAdminEmail)?.id
     : null;
-  const participants = new Map<string, string>();
+  const participants = new Map<string, TitsOpenSeedParticipant>();
 
   for (const player of TITS_OPEN_PLAYERS) {
-    const userId =
+    const initialUserId =
       player.slug === "jean-francois-senecal"
         ? initialAdminId ?? usersByName.get(normalizeName(player.displayName)) ?? null
         : usersByName.get(normalizeName(player.displayName)) ?? null;
     const participant = await prisma.tournamentParticipant.upsert({
       where: { editionId_slug: { editionId, slug: player.slug } },
       update: {
-        userId,
         displayName: player.displayName,
         nickname: player.nickname,
         country: "Canada",
         bio: player.bio,
-        role: player.role ?? "PLAYER",
         image: player.image,
         handicapSnapshot: player.handicapSnapshot,
         individualWins: player.individualWins,
@@ -428,7 +431,7 @@ async function seedTitsOpenParticipants(editionId: string) {
       },
       create: {
         editionId,
-        userId,
+        userId: initialUserId,
         displayName: player.displayName,
         slug: player.slug,
         nickname: player.nickname,
@@ -442,13 +445,16 @@ async function seedTitsOpenParticipants(editionId: string) {
         displayOrder: player.displayOrder,
       },
     });
-    participants.set(player.slug, participant.id);
+    participants.set(player.slug, { id: participant.id, role: participant.role });
   }
 
   return participants;
 }
 
-async function seedTitsOpenTeams(editionId: string, participants: Map<string, string>) {
+async function seedTitsOpenTeams(
+  editionId: string,
+  participants: Map<string, TitsOpenSeedParticipant>,
+) {
   await prisma.tournamentTeamMember.deleteMany({
     where: { team: { editionId } },
   });
@@ -473,12 +479,12 @@ async function seedTitsOpenTeams(editionId: string, participants: Map<string, st
     });
 
     for (const [memberIndex, slug] of team.members.entries()) {
-      const participantId = participants.get(slug);
-      if (!participantId) continue;
+      const participant = participants.get(slug);
+      if (!participant || participant.role === "CADDIE") continue;
       await prisma.tournamentTeamMember.create({
         data: {
           teamId: createdTeam.id,
-          participantId,
+          participantId: participant.id,
           displayOrder: memberIndex + 1,
         },
       });

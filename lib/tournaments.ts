@@ -68,7 +68,7 @@ export const tournamentEditionInclude = {
   },
   participants: {
     include: {
-      user: { select: { id: true, name: true, image: true } },
+      user: { select: { id: true, name: true, email: true, image: true } },
       scores: {
         include: {
           editionCourse: { include: { course: true, tee: true } },
@@ -88,7 +88,7 @@ export const tournamentEditionInclude = {
           participant: {
             include: {
               scores: true,
-              user: { select: { id: true, name: true, image: true } },
+              user: { select: { id: true, name: true, email: true, image: true } },
             },
           },
         },

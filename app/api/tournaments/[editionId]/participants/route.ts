@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { isAuthResponse, requireAdminApiUser } from "@/lib/auth-utils";
 import { TournamentParticipantInputSchema } from "@/lib/types";
 import { slugifyTournamentValue } from "@/lib/tournaments";
+import { getParticipantUserLinkError } from "./user-linking";
 
 export async function POST(
   req: Request,
@@ -20,6 +21,12 @@ export async function POST(
   const data = parsed.data;
   const slug = slugifyTournamentValue(data.slug || data.displayName);
   if (!slug) return NextResponse.json({ error: "Invalid participant slug" }, { status: 400 });
+
+  const linkError = await getParticipantUserLinkError({
+    editionId,
+    userId: data.userId,
+  });
+  if (linkError) return NextResponse.json({ error: linkError }, { status: 409 });
 
   const participant = await prisma.tournamentParticipant.create({
     data: {
