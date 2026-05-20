@@ -121,6 +121,92 @@ export type CourseInput = z.infer<typeof CourseInputSchema>;
 export type TeeInput = z.infer<typeof TeeInputSchema>;
 export type TeeDeleteInput = z.infer<typeof TeeDeleteInputSchema>;
 
+export const TournamentEditionInputSchema = z.object({
+  title: z.string().min(2).max(120).optional(),
+  subtitle: z.string().max(240).nullable().optional(),
+  location: z.string().max(120).nullable().optional(),
+  startsAt: z.string().nullable().optional(),
+  endsAt: z.string().nullable().optional(),
+  status: z.enum(["PLANNED", "LIVE", "COMPLETED", "ARCHIVED"]).optional(),
+  layoutKey: z.string().min(2).max(80).optional(),
+  heroImage: z.string().max(300).nullable().optional(),
+  logoImage: z.string().max(300).nullable().optional(),
+  accentColor: z.string().max(40).nullable().optional(),
+});
+
+export const TournamentEditionCourseInputSchema = z.object({
+  courseId: z.string().min(1),
+  teeId: z.string().min(1).nullable().optional(),
+  roundNumber: z.number().int().min(1).max(10),
+  dayLabel: z.string().max(80).nullable().optional(),
+  teeTime: z.string().nullable().optional(),
+  holeCount: z.union([z.literal(9), z.literal(18)]),
+  notes: z.string().max(500).nullable().optional(),
+});
+
+export const TournamentParticipantInputSchema = z.object({
+  userId: z.string().min(1).nullable().optional(),
+  displayName: z.string().min(2).max(120).trim(),
+  slug: z.string().max(120).nullable().optional(),
+  nickname: z.string().max(80).nullable().optional(),
+  country: z.string().max(80).nullable().optional(),
+  bio: z.string().max(800).nullable().optional(),
+  role: z.enum(["PLAYER", "CADDIE", "GUEST"]).default("PLAYER"),
+  image: z.string().max(300).nullable().optional(),
+  handicapSnapshot: z.number().min(-10).max(60).nullable().optional(),
+  courseHandicapSnapshot: z.number().int().min(-10).max(80).nullable().optional(),
+  individualWins: z.number().int().min(0).max(100).default(0),
+  teamWins: z.number().int().min(0).max(100).default(0),
+  displayOrder: z.number().int().min(0).max(500).default(0),
+});
+
+export const TournamentTeamInputSchema = z.object({
+  name: z.string().min(2).max(120).trim(),
+  description: z.string().max(800).nullable().optional(),
+  logoImage: z.string().max(300).nullable().optional(),
+  logoAlt: z.string().max(160).nullable().optional(),
+  displayOrder: z.number().int().min(0).max(500).default(0),
+  participantIds: z.array(z.string().min(1)).max(8).default([]),
+});
+
+export const TournamentScheduleItemInputSchema = z.object({
+  dayLabel: z.string().min(2).max(80).trim(),
+  startsAt: z.string().nullable().optional(),
+  timeLabel: z.string().max(80).nullable().optional(),
+  title: z.string().min(2).max(140).trim(),
+  details: z.string().max(500).nullable().optional(),
+  displayOrder: z.number().int().min(0).max(500).default(0),
+});
+
+export const TournamentScoreHoleInputSchema = z.object({
+  holeNumber: z.number().int().min(1).max(18),
+  par: z.number().int().min(3).max(6),
+  strokes: z.number().int().min(1).max(15),
+  putts: z.number().int().min(0).max(8).nullable().optional(),
+});
+
+export const TournamentScoreInputSchema = z.object({
+  editionCourseId: z.string().min(1).nullable().optional(),
+  participantId: z.string().min(1),
+  roundId: z.string().min(1).nullable().optional(),
+  playedAt: z.string().nullable().optional(),
+  grossStrokes: z.number().int().min(20).max(250).nullable().optional(),
+  totalPar: z.number().int().min(20).max(120).nullable().optional(),
+  handicapSnapshot: z.number().min(-10).max(60).nullable().optional(),
+  courseHandicapSnapshot: z.number().int().min(-10).max(80).nullable().optional(),
+  netStrokes: z.number().int().min(0).max(250).nullable().optional(),
+  notes: z.string().max(500).nullable().optional(),
+  holes: z.array(TournamentScoreHoleInputSchema).max(18).optional(),
+});
+
+export type TournamentEditionInput = z.infer<typeof TournamentEditionInputSchema>;
+export type TournamentEditionCourseInput = z.infer<typeof TournamentEditionCourseInputSchema>;
+export type TournamentParticipantInput = z.infer<typeof TournamentParticipantInputSchema>;
+export type TournamentTeamInput = z.infer<typeof TournamentTeamInputSchema>;
+export type TournamentScheduleItemInput = z.infer<typeof TournamentScheduleItemInputSchema>;
+export type TournamentScoreInput = z.infer<typeof TournamentScoreInputSchema>;
+export type TournamentScoreHoleInput = z.infer<typeof TournamentScoreHoleInputSchema>;
+
 export const AuthSignupInputSchema = z.object({
   name: z.string().min(2).max(80).trim(),
   email: z.email().trim().toLowerCase(),

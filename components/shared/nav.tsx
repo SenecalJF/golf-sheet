@@ -13,6 +13,7 @@ import {
   Camera,
   Menu,
   Users,
+  Trophy,
 } from "lucide-react";
 import {
   Sheet,
@@ -30,6 +31,7 @@ const ITEMS = [
   { href: "/courses", label: "Courses", icon: Flag },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/players", label: "Players", icon: Users },
+  { href: "/tits-open", label: "Tits Open", icon: Trophy },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -70,9 +72,9 @@ function Brand({ subtitle = true }: { subtitle?: boolean }) {
         <Flag className="h-5 w-5" />
       </div>
       <div className="leading-tight">
-        <div className="text-base font-semibold tracking-tight">Golf Sheet</div>
+        <div className="text-base font-semibold tracking-tight">Golf Clubhouse</div>
         {subtitle && (
-          <div className="text-xs text-muted-foreground">Personal tracker</div>
+          <div className="text-xs text-muted-foreground">Rounds & tournaments</div>
         )}
       </div>
     </Link>
@@ -103,7 +105,7 @@ export function DesktopNav() {
         )}
         {isAuthPage && (
           <div className="mt-auto rounded-xl border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground">
-            Private invite-only golf tracking.
+            Private invite-only golf clubhouse.
           </div>
         )}
       </div>

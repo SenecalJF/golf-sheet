@@ -46,6 +46,15 @@ export async function requireApiUser(): Promise<CurrentUser | NextResponse> {
   return user;
 }
 
+export async function requireAdminApiUser(): Promise<CurrentUser | NextResponse> {
+  const user = await requireApiUser();
+  if (isAuthResponse(user)) return user;
+  if (!user.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return user;
+}
+
 export function isAuthResponse(value: CurrentUser | NextResponse): value is NextResponse {
   return value instanceof NextResponse;
 }

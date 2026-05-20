@@ -52,7 +52,7 @@ const inviteCodePlugin = {
 } satisfies BetterAuthPlugin;
 
 export const auth = betterAuth({
-  appName: "Golf Sheet",
+  appName: "Golf Clubhouse",
   baseURL: getBaseUrl(),
   secret: getAuthSecret(),
   database: prismaAdapter(prisma, {

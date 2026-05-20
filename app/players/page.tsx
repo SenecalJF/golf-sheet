@@ -51,7 +51,7 @@ export default async function PlayersPage({
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Players</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">Community stats</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Aggregate-only profiles for every Golf Sheet user.
+            Aggregate-only profiles for every Golf Clubhouse user.
           </p>
         </div>
         <form className="flex w-full gap-2 sm:w-80">

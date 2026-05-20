@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Golf Sheet",
-  description: "Track every round. See your handicap move.",
+  title: "Golf Clubhouse",
+  description: "Track rounds, handicap, players, and tournaments.",
 };
 
 export default function RootLayout({

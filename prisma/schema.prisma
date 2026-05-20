@@ -15,9 +15,10 @@ model Course {
   notes     String?
   createdAt DateTime @default(now())
 
-  tees          Tee[]
-  rounds        Round[]
-  pendingRounds PendingRound[]
+  tees              Tee[]
+  rounds            Round[]
+  pendingRounds     PendingRound[]
+  tournamentCourses TournamentEditionCourse[]
 }
 
 model Tee {
@@ -36,9 +37,10 @@ model Tee {
   rating9B Float?
   slope9B  Int?
 
-  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  rounds        Round[]
-  pendingRounds PendingRound[]
+  course            Course                    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  rounds            Round[]
+  pendingRounds     PendingRound[]
+  tournamentCourses TournamentEditionCourse[]
 
   @@unique([courseId, name])
 }
@@ -53,12 +55,14 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  sessions              Session[]
-  accounts              Account[]
-  rounds                Round[]
-  secrets               UserSecret[]
-  pendingRoundsSent     PendingRound[] @relation("PendingRoundSender")
-  pendingRoundsReceived PendingRound[] @relation("PendingRoundRecipient")
+  sessions                  Session[]
+  accounts                  Account[]
+  rounds                    Round[]
+  secrets                   UserSecret[]
+  pendingRoundsSent         PendingRound[]          @relation("PendingRoundSender")
+  pendingRoundsReceived     PendingRound[]          @relation("PendingRoundRecipient")
+  tournamentParticipants    TournamentParticipant[]
+  tournamentScoresSubmitted TournamentScore[]       @relation("TournamentScoreSubmittedBy")
 
   @@map("user")
 }
@@ -147,11 +151,12 @@ model Round {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user                 User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  course               Course        @relation(fields: [courseId], references: [id])
-  tee                  Tee?          @relation(fields: [teeId], references: [id])
+  user                 User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  course               Course           @relation(fields: [courseId], references: [id])
+  tee                  Tee?             @relation(fields: [teeId], references: [id])
   holes                HoleScore[]
-  acceptedPendingRound PendingRound? @relation("AcceptedPendingRound")
+  acceptedPendingRound PendingRound?    @relation("AcceptedPendingRound")
+  tournamentScore      TournamentScore?
 
   @@index([date])
   @@index([userId])
@@ -236,4 +241,251 @@ model HoleScore {
   round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
 
   @@unique([roundId, holeNumber])
+}
+
+enum TournamentEditionStatus {
+  PLANNED
+  LIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum TournamentParticipantRole {
+  PLAYER
+  CADDIE
+  GUEST
+}
+
+enum TournamentScoreStatus {
+  DRAFT
+  FINAL
+}
+
+enum TournamentScoreSource {
+  MANUAL
+  LINKED_ROUND
+  AI_IMPORT
+}
+
+enum TournamentHonorType {
+  INDIVIDUAL_CHAMPION
+  TEAM_CHAMPION
+}
+
+model TournamentSeries {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  editions TournamentEdition[]
+  honors   TournamentHonor[]
+}
+
+model TournamentEdition {
+  id          String                  @id @default(cuid())
+  seriesId    String
+  year        Int
+  title       String
+  subtitle    String?
+  location    String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  status      TournamentEditionStatus @default(PLANNED)
+  layoutKey   String
+  heroImage   String?
+  logoImage   String?
+  accentColor String?
+  config      Json?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  series       TournamentSeries          @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  courses      TournamentEditionCourse[]
+  participants TournamentParticipant[]
+  teams        TournamentTeam[]
+  scores       TournamentScore[]
+  schedule     TournamentScheduleItem[]
+  honors       TournamentHonor[]
+
+  @@unique([seriesId, year])
+  @@index([year])
+}
+
+model TournamentEditionCourse {
+  id          String    @id @default(cuid())
+  editionId   String
+  courseId    String
+  teeId       String?
+  roundNumber Int       @default(1)
+  dayLabel    String?
+  teeTime     DateTime?
+  holeCount   Int       @default(18)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  edition TournamentEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  course  Course            @relation(fields: [courseId], references: [id])
+  tee     Tee?              @relation(fields: [teeId], references: [id], onDelete: SetNull)
+  scores  TournamentScore[]
+
+  @@unique([editionId, roundNumber])
+  @@index([courseId])
+  @@index([teeId])
+}
+
+model TournamentParticipant {
+  id                     String                    @id @default(cuid())
+  editionId              String
+  userId                 String?
+  displayName            String
+  slug                   String
+  nickname               String?
+  country                String?
+  bio                    String?
+  role                   TournamentParticipantRole @default(PLAYER)
+  image                  String?
+  handicapSnapshot       Float?
+  courseHandicapSnapshot Int?
+  individualWins         Int                       @default(0)
+  teamWins               Int                       @default(0)
+  displayOrder           Int                       @default(0)
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  edition     TournamentEdition      @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  user        User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  teamMembers TournamentTeamMember[]
+  scores      TournamentScore[]
+  honors      TournamentHonor[]
+
+  @@unique([editionId, slug])
+  @@index([userId])
+  @@index([editionId, displayOrder])
+}
+
+model TournamentTeam {
+  id           String   @id @default(cuid())
+  editionId    String
+  name         String
+  description  String?
+  logoImage    String?
+  logoAlt      String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  edition TournamentEdition      @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  members TournamentTeamMember[]
+  honors  TournamentHonor[]
+
+  @@unique([editionId, name])
+  @@index([editionId, displayOrder])
+}
+
+model TournamentTeamMember {
+  id            String   @id @default(cuid())
+  teamId        String
+  participantId String
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  team        TournamentTeam        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  participant TournamentParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, participantId])
+  @@unique([participantId])
+  @@index([teamId, displayOrder])
+}
+
+model TournamentHonor {
+  id              String              @id @default(cuid())
+  seriesId        String
+  editionId       String?
+  year            Int?
+  type            TournamentHonorType
+  title           String
+  participantId   String?
+  teamId          String?
+  participantName String?
+  teamName        String?
+  notes           String?
+  displayOrder    Int                 @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  series      TournamentSeries       @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  edition     TournamentEdition?     @relation(fields: [editionId], references: [id], onDelete: SetNull)
+  participant TournamentParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  team        TournamentTeam?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([seriesId, year])
+  @@index([editionId])
+  @@index([participantId])
+  @@index([teamId])
+}
+
+model TournamentScore {
+  id                     String                @id @default(cuid())
+  editionId              String
+  editionCourseId        String?
+  participantId          String
+  roundId                String?               @unique
+  submittedByUserId      String?
+  status                 TournamentScoreStatus @default(FINAL)
+  source                 TournamentScoreSource @default(MANUAL)
+  playedAt               DateTime?
+  grossStrokes           Int
+  totalPar               Int
+  handicapSnapshot       Float?
+  courseHandicapSnapshot Int?
+  netStrokes             Int?
+  notes                  String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  edition         TournamentEdition        @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  editionCourse   TournamentEditionCourse? @relation(fields: [editionCourseId], references: [id], onDelete: SetNull)
+  participant     TournamentParticipant    @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  round           Round?                   @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  submittedByUser User?                    @relation("TournamentScoreSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  holes           TournamentScoreHole[]
+
+  @@unique([editionCourseId, participantId])
+  @@index([editionId])
+  @@index([participantId])
+  @@index([submittedByUserId])
+}
+
+model TournamentScoreHole {
+  id         String @id @default(cuid())
+  scoreId    String
+  holeNumber Int
+  par        Int
+  strokes    Int
+  putts      Int?
+
+  score TournamentScore @relation(fields: [scoreId], references: [id], onDelete: Cascade)
+
+  @@unique([scoreId, holeNumber])
+}
+
+model TournamentScheduleItem {
+  id           String    @id @default(cuid())
+  editionId    String
+  dayLabel     String
+  startsAt     DateTime?
+  timeLabel    String?
+  title        String
+  details      String?
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  edition TournamentEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  @@index([editionId, displayOrder])
 }
