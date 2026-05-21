@@ -97,9 +97,31 @@ function isInitialAdminEmail(email: string | null | undefined): boolean {
   return !!initialAdminEmail && email?.trim().toLowerCase() === initialAdminEmail;
 }
 
-function getBaseUrl(): string | undefined {
+function getBaseUrl():
+  | string
+  | {
+      allowedHosts: string[];
+      fallback?: string;
+      protocol: "https";
+    } {
+  if (process.env.VERCEL) {
+    return {
+      protocol: "https",
+      allowedHosts: [
+        "golf-sheet.vercel.app",
+        "golf-sheet-senecaljfs-projects.vercel.app",
+        "golf-sheet-*-senecaljfs-projects.vercel.app",
+      ],
+      fallback:
+        process.env.BETTER_AUTH_URL ||
+        (process.env.VERCEL_PROJECT_PRODUCTION_URL
+          ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+          : process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : undefined),
+    };
+  }
   if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return "http://localhost:3000";
 }
 
