@@ -31,6 +31,14 @@ export type TournamentTeamLeaderboardRow = {
   scoreCount: number;
   grossTotal: number | null;
   netTotal: number | null;
+  combinedHandicap: number | null;
+  averageHandicap: number | null;
+  individualWins: number;
+  teamWins: number;
+  linkedMemberCount: number;
+  linkedRoundCount: number;
+  recentAvgVsPar: number | null;
+  bestDifferential: number | null;
   rank: number | null;
 };
 
@@ -108,7 +116,27 @@ export const tournamentEditionInclude = {
           participant: {
             include: {
               scores: true,
-              user: { select: { id: true, name: true, email: true, image: true } },
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                  _count: { select: { rounds: true } },
+                  rounds: {
+                    select: {
+                      id: true,
+                      date: true,
+                      holeCount: true,
+                      totalStrokes: true,
+                      totalPar: true,
+                      scoreDiff: true,
+                    },
+                    orderBy: { date: "desc" as const },
+                    take: 20,
+                  },
+                },
+              },
             },
           },
         },
@@ -308,6 +336,20 @@ export function buildTeamLeaderboard(
     const members = team.members
       .map((member) => participantRows.get(member.participantId))
       .filter((member): member is TournamentLeaderboardRow => Boolean(member));
+    const participants = team.members
+      .map((member) => member.participant)
+      .filter((participant) => participant.role !== "CADDIE");
+    const handicaps = participants
+      .map((participant) => participant.handicapSnapshot)
+      .filter((handicap): handicap is number => handicap != null);
+    const combinedHandicap =
+      participants.length > 0 && handicaps.length === participants.length
+        ? roundOne(handicaps.reduce((total, handicap) => total + handicap, 0))
+        : null;
+    const appRounds = participants.flatMap((participant) => participant.user?.rounds ?? []);
+    const recentRounds = [...appRounds]
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 5);
     const grossTotal = sumOrNull(members.map((member) => member.grossTotal));
     const netTotal = sumOrNull(members.map((member) => member.netTotal));
     return {
@@ -319,6 +361,23 @@ export function buildTeamLeaderboard(
       scoreCount: members.reduce((total, member) => total + member.scoreCount, 0),
       grossTotal,
       netTotal,
+      combinedHandicap,
+      averageHandicap:
+        combinedHandicap == null || participants.length === 0
+          ? null
+          : roundOne(combinedHandicap / participants.length),
+      individualWins: participants.reduce(
+        (total, participant) => total + participant.individualWins,
+        0,
+      ),
+      teamWins: participants.reduce((total, participant) => total + participant.teamWins, 0),
+      linkedMemberCount: participants.filter((participant) => participant.user).length,
+      linkedRoundCount: participants.reduce(
+        (total, participant) => total + (participant.user?._count.rounds ?? 0),
+        0,
+      ),
+      recentAvgVsPar: averageOrNull(recentRounds.map(normalizeRoundVsPar)),
+      bestDifferential: minOrNull(appRounds.map((round) => round.scoreDiff)),
       rank: null,
     };
   });
@@ -402,6 +461,29 @@ function sumOrNull(values: (number | null)[]) {
   const numeric = values.filter((value): value is number => value != null);
   if (numeric.length === 0) return null;
   return numeric.reduce((total, value) => total + value, 0);
+}
+
+function averageOrNull(values: number[]) {
+  if (values.length === 0) return null;
+  return roundOne(values.reduce((total, value) => total + value, 0) / values.length);
+}
+
+function minOrNull(values: (number | null)[]) {
+  const numeric = values.filter((value): value is number => value != null);
+  return numeric.length > 0 ? roundOne(Math.min(...numeric)) : null;
+}
+
+function normalizeRoundVsPar(round: {
+  holeCount: number;
+  totalStrokes: number;
+  totalPar: number;
+}) {
+  const holeCount = round.holeCount > 0 ? round.holeCount : 18;
+  return roundOne(((round.totalStrokes - round.totalPar) / holeCount) * 18);
+}
+
+function roundOne(value: number) {
+  return Math.round(value * 10) / 10;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

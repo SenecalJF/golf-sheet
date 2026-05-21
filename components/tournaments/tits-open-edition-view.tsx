@@ -135,7 +135,7 @@ function TitsOpen2026View({
         <HonorsPanel honors={honors} />
 
         <section className="grid gap-4 lg:grid-cols-2">
-          <TeamsPanel edition={edition} />
+          <TeamsPanel edition={edition} rows={teamRows} />
           <SchedulePanel edition={edition} />
         </section>
 
@@ -442,32 +442,39 @@ function TeamLeaderboardCard({
       ) : (
         <div className="space-y-3">
           {rows.map((row) => (
-            <div key={row.teamId} className="flex items-center gap-3 rounded-md border border-border bg-secondary p-3">
-              {row.logoImage ? (
-                <Image
-                  src={row.logoImage}
-                  alt=""
-                  width={48}
-                  height={48}
-                  className="h-12 w-12 rounded-lg object-contain"
-                />
-              ) : (
-                <div className="grid h-12 w-12 place-items-center rounded-lg bg-primary/15 text-primary">
-                  <Shield className="h-5 w-5" />
+            <div key={row.teamId} className="rounded-md border border-border bg-secondary p-3">
+              <div className="flex items-center gap-3">
+                {row.logoImage ? (
+                  <Image
+                    src={row.logoImage}
+                    alt=""
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-lg object-contain"
+                  />
+                ) : (
+                  <div className="grid h-12 w-12 place-items-center rounded-lg bg-primary/15 text-primary">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{row.rank ? `#${row.rank}` : "-"}</span>
+                    <span className="truncate font-medium">{row.name}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {row.memberCount} members · {row.scoreCount} scores
+                  </div>
                 </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{row.rank ? `#${row.rank}` : "-"}</span>
-                  <span className="truncate font-medium">{row.name}</span>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {row.memberCount} members · {row.scoreCount} scores
+                <div className="text-right">
+                  <div className="number-mono text-xl font-semibold">{formatNumber(row.netTotal)}</div>
+                  <div className="text-xs text-muted-foreground">net</div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="number-mono text-xl font-semibold">{formatNumber(row.netTotal)}</div>
-                <div className="text-xs text-muted-foreground">net</div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <MiniMetric label="HCP" value={formatDecimal(row.combinedHandicap)} />
+                <MiniMetric label="Wins" value={row.teamWins} />
+                <MiniMetric label="Form" value={formatSignedDecimal(row.recentAvgVsPar)} />
               </div>
             </div>
           ))}
@@ -477,7 +484,15 @@ function TeamLeaderboardCard({
   );
 }
 
-function TeamsPanel({ edition }: { edition: TournamentEditionFull }) {
+function TeamsPanel({
+  edition,
+  rows,
+}: {
+  edition: TournamentEditionFull;
+  rows: ReturnType<typeof buildTeamLeaderboard>;
+}) {
+  const rowById = new Map(rows.map((row) => [row.teamId, row]));
+
   return (
     <Card className={`${tournamentCardClass} p-5`}>
       <h2 className="font-serif text-3xl font-bold tracking-tight">Team room</h2>
@@ -485,44 +500,75 @@ function TeamsPanel({ edition }: { edition: TournamentEditionFull }) {
         {edition.teams.length === 0 ? (
           <EmptyLine text="No teams have been assigned." />
         ) : (
-          edition.teams.map((team) => (
-            <div key={team.id} className="rounded-md border border-border bg-secondary p-4">
-              <div className="flex items-center gap-3">
-                {team.logoImage && (
-                  <Image
-                    src={team.logoImage}
-                    alt=""
-                    width={44}
-                    height={44}
-                    className="h-11 w-11 object-contain"
-                  />
-                )}
-                <h3 className="text-lg font-semibold">{team.name}</h3>
-              </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {team.members.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center gap-2 rounded-md bg-card px-3 py-2 text-sm"
-                  >
-                    {member.participant.image && (
-                      <Image
-                        src={member.participant.image}
-                        alt=""
-                        width={28}
-                        height={28}
-                        className="h-7 w-7 rounded-full object-cover"
-                      />
-                    )}
-                    <span className="truncate">{member.participant.displayName}</span>
+          edition.teams.map((team) => {
+            const stats = rowById.get(team.id);
+
+            return (
+              <div key={team.id} className="rounded-md border border-border bg-secondary p-4">
+                <div className="flex items-center gap-3">
+                  {team.logoImage && (
+                    <Image
+                      src={team.logoImage}
+                      alt=""
+                      width={44}
+                      height={44}
+                      className="h-11 w-11 object-contain"
+                    />
+                  )}
+                  <h3 className="text-lg font-semibold">{team.name}</h3>
+                </div>
+                {stats && (
+                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <MiniMetric label="Combined HCP" value={formatDecimal(stats.combinedHandicap)} />
+                    <MiniMetric label="Avg HCP" value={formatDecimal(stats.averageHandicap)} />
+                    <MiniMetric label="Team wins" value={stats.teamWins} />
+                    <MiniMetric label="Solo wins" value={stats.individualWins} />
+                    <MiniMetric
+                      label="Linked"
+                      value={`${stats.linkedMemberCount}/${stats.memberCount}`}
+                    />
+                    <MiniMetric label="App rounds" value={stats.linkedRoundCount} />
+                    <MiniMetric
+                      label="Recent form"
+                      value={formatSignedDecimal(stats.recentAvgVsPar)}
+                    />
+                    <MiniMetric
+                      label="Best diff"
+                      value={formatSignedDecimal(stats.bestDifferential)}
+                    />
                   </div>
-                ))}
+                )}
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {team.members.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center gap-2 rounded-md bg-card px-3 py-2 text-sm"
+                    >
+                      {member.participant.image && (
+                        <Image
+                          src={member.participant.image}
+                          alt=""
+                          width={28}
+                          height={28}
+                          className="h-7 w-7 rounded-full object-cover"
+                        />
+                      )}
+                      <span className="min-w-0 flex-1 truncate">
+                        {member.participant.displayName}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        HCP {formatDecimal(member.participant.handicapSnapshot)} ·{" "}
+                        {member.participant.user?._count.rounds ?? 0} rounds
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {team.description && (
+                  <p className="mt-4 text-sm leading-6 text-muted-foreground">{team.description}</p>
+                )}
               </div>
-              {team.description && (
-                <p className="mt-4 text-sm leading-6 text-muted-foreground">{team.description}</p>
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </Card>
@@ -780,4 +826,15 @@ function EmptyLine({ text }: { text: string }) {
 
 function formatNumber(value: number | null | undefined) {
   return value == null ? "-" : value;
+}
+
+function formatDecimal(value: number | null | undefined) {
+  if (value == null) return "-";
+  return Number.isInteger(value) ? value : value.toFixed(1);
+}
+
+function formatSignedDecimal(value: number | null | undefined) {
+  if (value == null) return "-";
+  const formatted = formatDecimal(value);
+  return value > 0 ? `+${formatted}` : formatted;
 }
