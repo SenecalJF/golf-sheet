@@ -18,6 +18,30 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Golf Clubhouse",
   description: "Track rounds, handicap, players, and tournaments.",
+  icons: {
+    icon: [
+      {
+        url: "/tournaments/tits-open/icons/tits-open-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/tournaments/tits-open/icons/tits-open-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+    apple: {
+      url: "/tournaments/tits-open/icons/tits-open-180.png",
+      sizes: "180x180",
+      type: "image/png",
+    },
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Golf Clubhouse",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default function RootLayout({
