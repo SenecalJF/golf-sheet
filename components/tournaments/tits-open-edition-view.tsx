@@ -110,7 +110,7 @@ function TitsOpen2026View({
 
   return (
     <div
-      className="relative left-1/2 -mx-4 -my-6 w-screen -translate-x-1/2 bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:-my-10"
+      className="relative left-1/2 -mx-4 -my-6 w-screen -translate-x-1/2 overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:-my-10"
       style={titsOpenThemeStyle}
     >
       <EditionHero
@@ -122,13 +122,20 @@ function TitsOpen2026View({
         scoreSubmitLockedLabel={scoreSubmitLockedLabel}
       />
 
-      <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <MobileSectionNav />
+
+      <div className="mx-auto max-w-6xl space-y-6 px-3 py-6 sm:space-y-8 sm:px-6 sm:py-8 lg:px-8">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-5">
           <StatTile icon={Users} label="Players" value={edition.participants.length} />
           <StatTile icon={Shield} label="Teams" value={edition.teams.length} />
           <StatTile icon={Flag} label="Rounds" value={edition.courses.length} />
           <StatTile icon={Trophy} label="Scores" value={edition.scores.length} />
-          <StatTile icon={Medal} label="Honors" value={honors.length} />
+          <StatTile
+            icon={Medal}
+            label="Honors"
+            value={honors.length}
+            className="col-span-2 md:col-span-1"
+          />
         </div>
 
         <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
@@ -159,11 +166,13 @@ function HonorsPanel({
   honors: TournamentEditionFull["series"]["honors"];
 }) {
   return (
-    <Card className={`${tournamentCardClass} p-5`}>
+    <Card className={`${tournamentCardClass} p-4 sm:p-5`}>
       <div className="mb-5 flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Past champions</p>
-          <h2 className="mt-1 font-serif text-3xl font-bold tracking-tight">Tits Open history</h2>
+          <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+            Tits Open history
+          </h2>
         </div>
         <Trophy className="h-5 w-5 text-primary" />
       </div>
@@ -172,7 +181,7 @@ function HonorsPanel({
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {honors.map((honor) => (
-            <div key={honor.id} className="rounded-md border border-border bg-secondary p-4">
+            <div key={honor.id} className="rounded-md border border-border bg-secondary p-3 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <Badge variant="outline" className="border-border text-[#1f5c3a]">
                   {honor.year ?? "Legacy"}
@@ -181,7 +190,7 @@ function HonorsPanel({
                   {honor.type === "TEAM_CHAMPION" ? "Team" : "Individual"}
                 </span>
               </div>
-              <h3 className="mt-3 font-serif text-2xl font-bold tracking-tight">
+              <h3 className="mt-3 font-serif text-xl font-bold tracking-tight sm:text-2xl">
                 {honor.teamName ?? honor.participantName ?? honor.title}
               </h3>
               <p className="mt-1 text-sm font-medium text-[#1f5c3a]">{honor.title}</p>
@@ -211,7 +220,7 @@ function TitsOpenArchiveShell({
 }) {
   return (
     <div
-      className="relative left-1/2 -mx-4 -my-6 w-screen -translate-x-1/2 bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:-my-10"
+      className="relative left-1/2 -mx-4 -my-6 w-screen -translate-x-1/2 overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:-my-10"
       style={titsOpenThemeStyle}
     >
       <EditionHero
@@ -222,8 +231,8 @@ function TitsOpenArchiveShell({
         scoreSubmitHref={scoreSubmitHref}
         scoreSubmitLockedLabel={scoreSubmitLockedLabel}
       />
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <Card className={`${tournamentCardClass} p-8`}>
+      <div className="mx-auto max-w-6xl px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <Card className={`${tournamentCardClass} p-5 sm:p-8`}>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">Archive shell</p>
@@ -263,7 +272,7 @@ function EditionHero({
   scoreSubmitLockedLabel?: string | null;
 }) {
   return (
-    <section className="relative min-h-[calc(100svh-8rem)] w-full overflow-hidden border-b border-[#c9a227]/50 bg-[#123524]">
+    <section className="relative min-h-[calc(100svh-5rem)] w-full overflow-hidden border-b border-[#c9a227]/50 bg-[#123524] sm:min-h-[calc(100svh-8rem)]">
       {edition.heroImage ? (
         <Image
           src={edition.heroImage}
@@ -271,7 +280,7 @@ function EditionHero({
           fill
           priority
           sizes="100vw"
-          className="object-cover"
+          className="object-cover object-center"
         />
       ) : (
         <div className="absolute inset-0 bg-[#123524]" />
@@ -279,27 +288,29 @@ function EditionHero({
       <div className="absolute inset-0 bg-[#123524]/65 backdrop-blur-[2px]" />
       <div className="absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-background to-transparent" />
 
-      <div className="relative z-10 mx-auto flex min-h-[calc(100svh-8rem)] max-w-6xl flex-col justify-end px-4 pb-10 pt-24 text-[#fffaf0] sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-wrap gap-2">
-          {editions.map((item) => (
-            <Button
-              key={item.year}
-              asChild
-              variant={item.year === edition.year ? "default" : "outline"}
-              size="sm"
-              className={
-                item.year === edition.year
-                  ? "bg-[#c9a227] text-[#123524] hover:bg-[#fffaf0]"
-                  : "border-[#fffaf0]/70 bg-transparent text-[#fffaf0] hover:border-[#c9a227] hover:bg-[#c9a227]/15"
-              }
-            >
-              <Link href={`/tits-open/${item.year}`}>{item.year}</Link>
-            </Button>
-          ))}
+      <div className="relative z-10 mx-auto flex min-h-[calc(100svh-5rem)] max-w-6xl flex-col justify-end px-4 pb-7 pt-20 text-[#fffaf0] sm:min-h-[calc(100svh-8rem)] sm:px-6 sm:pb-10 sm:pt-24 lg:px-8">
+        <div className="-mx-4 mb-6 overflow-x-auto px-4 pb-1 sm:mx-0 sm:mb-8 sm:px-0">
+          <div className="flex min-w-max gap-2">
+            {editions.map((item) => (
+              <Button
+                key={item.year}
+                asChild
+                variant={item.year === edition.year ? "default" : "outline"}
+                size="sm"
+                className={
+                  item.year === edition.year
+                    ? "h-10 bg-[#c9a227] px-4 text-[#123524] hover:bg-[#fffaf0]"
+                    : "h-10 border-[#fffaf0]/70 bg-transparent px-4 text-[#fffaf0] hover:border-[#c9a227] hover:bg-[#c9a227]/15"
+                }
+              >
+                <Link href={`/tits-open/${item.year}`}>{item.year}</Link>
+              </Button>
+            ))}
+          </div>
         </div>
 
         <div className="max-w-4xl">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-5">
             {edition.logoImage && (
               <Image
                 src={edition.logoImage}
@@ -307,30 +318,30 @@ function EditionHero({
                 width={180}
                 height={210}
                 priority
-                className="h-auto w-20 sm:w-24"
+                className="h-auto w-16 sm:w-24"
               />
             )}
             <div>
               <Badge variant="outline" className="border-[#c9a227]/70 bg-[#123524]/50 text-[#c9a227]">
                 {edition.status.toLowerCase()} · {edition.location ?? "Quebec"}
               </Badge>
-              <h1 className="mt-4 font-serif text-6xl font-black leading-[0.92] text-balance sm:text-7xl lg:text-8xl">
+              <h1 className="mt-3 max-w-[11ch] font-serif text-5xl font-black leading-[0.94] text-balance sm:mt-4 sm:max-w-none sm:text-7xl lg:text-8xl">
                 {edition.title}
               </h1>
             </div>
           </div>
           {edition.subtitle && (
-            <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-[#fffaf0]/85">
+            <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-[#fffaf0]/85 sm:mt-6 sm:text-lg sm:leading-8">
               {edition.subtitle}
             </p>
           )}
           {quote && (
-            <blockquote className="mt-5 max-w-3xl text-xl font-medium leading-8 text-[#fffaf0] sm:text-2xl">
+            <blockquote className="mt-4 max-w-3xl text-lg font-medium leading-7 text-[#fffaf0] sm:mt-5 sm:text-2xl sm:leading-8">
               &ldquo;{quote}&rdquo;
             </blockquote>
           )}
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild className="bg-[#c9a227] text-[#123524] hover:bg-[#fffaf0]">
+          <div className="mt-6 grid gap-2 sm:mt-8 sm:flex sm:flex-wrap sm:gap-3">
+            <Button asChild className="h-11 justify-center bg-[#c9a227] text-[#123524] hover:bg-[#fffaf0] sm:h-10">
               <a href="#leaderboard">
                 <Trophy className="mr-1 h-4 w-4" /> Leaderboard
               </a>
@@ -339,7 +350,7 @@ function EditionHero({
               <Button
                 asChild
                 variant="secondary"
-                className="bg-[#fffaf0] text-[#123524] hover:bg-[#c9a227]"
+                className="h-11 justify-center bg-[#fffaf0] text-[#123524] hover:bg-[#c9a227] sm:h-10"
               >
                 <Link href={scoreSubmitHref}>
                   <Camera className="mr-1 h-4 w-4" /> Submit scorecard
@@ -351,7 +362,7 @@ function EditionHero({
                 <Button
                   disabled
                   variant="secondary"
-                  className="bg-[#fffaf0] text-[#123524] opacity-80"
+                  className="h-11 justify-center bg-[#fffaf0] text-[#123524] opacity-80 sm:h-10"
                 >
                   <Camera className="mr-1 h-4 w-4" /> Scorecard locked
                 </Button>
@@ -363,14 +374,14 @@ function EditionHero({
             <Button
               asChild
               variant="outline"
-              className="border-[#fffaf0]/70 bg-transparent text-[#fffaf0] hover:border-[#c9a227] hover:bg-[#c9a227]/15"
+              className="h-11 justify-center border-[#fffaf0]/70 bg-transparent text-[#fffaf0] hover:border-[#c9a227] hover:bg-[#c9a227]/15 sm:h-10"
             >
               <a href="#course-guide">
                 <MapIcon className="mr-1 h-4 w-4" /> Course guide
               </a>
             </Button>
             {isAdmin && (
-              <Button asChild variant="secondary" className="bg-[#fffaf0] text-[#123524] hover:bg-[#c9a227]">
+              <Button asChild variant="secondary" className="h-11 justify-center bg-[#fffaf0] text-[#123524] hover:bg-[#c9a227] sm:h-10">
                 <Link href={`/tits-open/${edition.year}/admin`}>Admin</Link>
               </Button>
             )}
@@ -378,6 +389,31 @@ function EditionHero({
         </div>
       </div>
     </section>
+  );
+}
+
+function MobileSectionNav() {
+  const items = [
+    { href: "#leaderboard", label: "Board" },
+    { href: "#teams", label: "Teams" },
+    { href: "#players", label: "Players" },
+    { href: "#course-guide", label: "Courses" },
+  ];
+
+  return (
+    <div className="sticky top-[64px] z-20 border-y border-border bg-background/95 px-3 py-2 backdrop-blur sm:hidden">
+      <nav className="grid grid-cols-4 gap-1">
+        {items.map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className="grid h-10 place-items-center rounded-md border border-border bg-card px-2 text-xs font-bold text-foreground"
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
+    </div>
   );
 }
 
@@ -389,11 +425,13 @@ function LeaderboardCard({
   rows: ReturnType<typeof buildParticipantLeaderboard>;
 }) {
   return (
-    <Card id="leaderboard" className={`${tournamentCardClass} p-5`}>
+    <Card id="leaderboard" className={`${tournamentCardClass} scroll-mt-28 p-4 sm:p-5`}>
       <div className="mb-5 flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Gross + net</p>
-          <h2 className="mt-1 font-serif text-3xl font-bold tracking-tight">{title}</h2>
+          <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+            {title}
+          </h2>
         </div>
         <Medal className="h-5 w-5 text-primary" />
       </div>
@@ -404,7 +442,7 @@ function LeaderboardCard({
           {rows.map((row) => {
             const content = (
               <>
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-[#123524] text-sm font-bold text-[#fffaf0]">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-[#123524] text-xs font-bold text-[#fffaf0] sm:h-10 sm:w-10 sm:text-sm">
                   {row.rank ? `#${row.rank}` : "-"}
                 </div>
                 <div className="min-w-0">
@@ -418,7 +456,7 @@ function LeaderboardCard({
                     {row.userId ? " · Golf Sheet profile" : " · guest"}
                   </div>
                 </div>
-                <div className="col-span-2 grid grid-cols-3 gap-2 sm:col-span-1 sm:w-56">
+                <div className="col-span-2 grid grid-cols-3 gap-1.5 sm:col-span-1 sm:w-56 sm:gap-2">
                   <MiniMetric label="Gross" value={formatNumber(row.grossTotal)} />
                   <MiniMetric label="Net" value={formatNumber(row.netTotal)} />
                   <MiniMetric label="CH" value={row.courseHandicapTotal} />
@@ -426,7 +464,7 @@ function LeaderboardCard({
               </>
             );
             const className =
-              "grid grid-cols-[auto_1fr] gap-3 rounded-md border border-border bg-secondary p-3 transition sm:grid-cols-[auto_1fr_auto]";
+              "grid grid-cols-[auto_1fr] gap-2 rounded-md border border-border bg-secondary p-3 transition sm:grid-cols-[auto_1fr_auto] sm:gap-3";
 
             return row.userId ? (
               <Link
@@ -456,11 +494,13 @@ function PlayerLinksPanel({
   if (signals.length === 0) return null;
 
   return (
-    <Card className={`${tournamentCardClass} p-5`}>
+    <Card className={`${tournamentCardClass} p-4 sm:p-5`}>
       <div className="mb-5 flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Golf Sheet link</p>
-          <h2 className="mt-1 font-serif text-3xl font-bold tracking-tight">Player form</h2>
+          <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+            Player form
+          </h2>
         </div>
         <Activity className="h-5 w-5 text-primary" />
       </div>
@@ -469,7 +509,7 @@ function PlayerLinksPanel({
           <Link
             key={signal.participantId}
             href={signal.profileHref}
-            className="group rounded-md border border-border bg-secondary p-4 transition hover:border-primary/70 hover:bg-[#eef5da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="group rounded-md border border-border bg-secondary p-3 transition hover:border-primary/70 hover:bg-[#eef5da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4"
           >
             <div className="flex items-center gap-3">
               {signal.image ? (
@@ -495,9 +535,9 @@ function PlayerLinksPanel({
                 </div>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-3 gap-1.5 sm:gap-2">
               <MiniMetric label="Recent" value={formatSignedDecimal(signal.recentAvgVsPar)} />
-              <MiniMetric label="Best diff" value={formatSignedDecimal(signal.bestDifferential)} />
+              <MiniMetric label="Best" value={formatSignedDecimal(signal.bestDifferential)} />
               <MiniMetric label="Rounds" value={signal.linkedRoundCount} />
             </div>
             <div className="mt-3 text-xs text-muted-foreground">
@@ -517,11 +557,11 @@ function TeamLeaderboardCard({
   rows: ReturnType<typeof buildTeamLeaderboard>;
 }) {
   return (
-    <Card className={`${tournamentCardClass} p-5`}>
+    <Card className={`${tournamentCardClass} p-4 sm:p-5`}>
       <div className="mb-5 flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Team total</p>
-          <h2 className="mt-1 font-serif text-3xl font-bold tracking-tight">Teams</h2>
+          <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight sm:text-3xl">Teams</h2>
         </div>
         <Shield className="h-5 w-5 text-primary" />
       </div>
@@ -554,12 +594,12 @@ function TeamLeaderboardCard({
                     {row.memberCount} members · {row.scoreCount} scores
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="number-mono text-xl font-semibold">{formatNumber(row.netTotal)}</div>
+                <div className="shrink-0 text-right">
+                  <div className="number-mono text-lg font-semibold sm:text-xl">{formatNumber(row.netTotal)}</div>
                   <div className="text-xs text-muted-foreground">net</div>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
                 <MiniMetric label="HCP" value={formatDecimal(row.combinedHandicap)} />
                 <MiniMetric label="Wins" value={row.teamWins} />
                 <MiniMetric label="Form" value={formatSignedDecimal(row.recentAvgVsPar)} />
@@ -582,8 +622,8 @@ function TeamsPanel({
   const rowById = new Map(rows.map((row) => [row.teamId, row]));
 
   return (
-    <Card className={`${tournamentCardClass} p-5`}>
-      <h2 className="font-serif text-3xl font-bold tracking-tight">Team room</h2>
+    <Card id="teams" className={`${tournamentCardClass} scroll-mt-28 p-4 sm:p-5`}>
+      <h2 className="font-serif text-2xl font-bold tracking-tight sm:text-3xl">Team room</h2>
       <div className="mt-5 grid gap-3">
         {edition.teams.length === 0 ? (
           <EmptyLine text="No teams have been assigned." />
@@ -592,7 +632,7 @@ function TeamsPanel({
             const stats = rowById.get(team.id);
 
             return (
-              <div key={team.id} className="rounded-md border border-border bg-secondary p-4">
+              <div key={team.id} className="rounded-md border border-border bg-secondary p-3 sm:p-4">
                 <div className="flex items-center gap-3">
                   {team.logoImage && (
                     <Image
@@ -603,10 +643,10 @@ function TeamsPanel({
                       className="h-11 w-11 object-contain"
                     />
                   )}
-                  <h3 className="text-lg font-semibold">{team.name}</h3>
+                  <h3 className="min-w-0 truncate text-lg font-semibold">{team.name}</h3>
                 </div>
                 {stats && (
-                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="mt-4 grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
                     <MiniMetric label="Combined HCP" value={formatDecimal(stats.combinedHandicap)} />
                     <MiniMetric label="Avg HCP" value={formatDecimal(stats.averageHandicap)} />
                     <MiniMetric label="Team wins" value={stats.teamWins} />
@@ -648,27 +688,34 @@ function TeamMemberLink({
 }: {
   member: TournamentEditionFull["teams"][number]["members"][number];
 }) {
+  const avatar = member.participant.image ? (
+    <Image
+      src={member.participant.image}
+      alt=""
+      width={32}
+      height={32}
+      className="h-8 w-8 rounded-full object-cover"
+    />
+  ) : (
+    <div className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-primary">
+      <Users className="h-4 w-4" />
+    </div>
+  );
   const content = (
     <>
-      {member.participant.image && (
-        <Image
-          src={member.participant.image}
-          alt=""
-          width={28}
-          height={28}
-          className="h-7 w-7 rounded-full object-cover"
-        />
-      )}
-      <span className="min-w-0 flex-1 truncate">{member.participant.displayName}</span>
-      <span className="shrink-0 text-xs text-muted-foreground">
-        HCP {formatDecimal(member.participant.handicapSnapshot)} ·{" "}
-        {member.participant.user?._count.rounds ?? 0} rounds
+      {avatar}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{member.participant.displayName}</span>
+        <span className="block text-xs text-muted-foreground">
+          HCP {formatDecimal(member.participant.handicapSnapshot)} ·{" "}
+          {member.participant.user?._count.rounds ?? 0} rounds
+        </span>
       </span>
       {member.participant.userId && <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-primary" />}
     </>
   );
   const className =
-    "flex min-h-10 items-center gap-2 rounded-md bg-card px-3 py-2 text-sm transition";
+    "flex min-h-12 items-center gap-2 rounded-md bg-card px-3 py-2 text-sm transition";
 
   return member.participant.userId ? (
     <Link
@@ -689,8 +736,8 @@ function SchedulePanel({ edition }: { edition: TournamentEditionFull }) {
   }
 
   return (
-    <Card className={`${tournamentCardClass} p-5`}>
-      <h2 className="font-serif text-3xl font-bold tracking-tight">Weekend schedule</h2>
+    <Card className={`${tournamentCardClass} p-4 sm:p-5`}>
+      <h2 className="font-serif text-2xl font-bold tracking-tight sm:text-3xl">Weekend schedule</h2>
       <div className="mt-5 space-y-5">
         {grouped.size === 0 ? (
           <EmptyLine text="No schedule items yet." />
@@ -733,10 +780,10 @@ function ParticipantsPanel({
 }) {
   const rowById = new Map(rows.map((row) => [row.participantId, row]));
   return (
-    <Card className={`${tournamentCardClass} p-5`}>
+    <Card id="players" className={`${tournamentCardClass} scroll-mt-28 p-4 sm:p-5`}>
       <div className="mb-5">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Field</p>
-        <h2 className="mt-1 font-serif text-3xl font-bold tracking-tight">Players</h2>
+        <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight sm:text-3xl">Players</h2>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {edition.participants.map((participant) => {
@@ -744,7 +791,7 @@ function ParticipantsPanel({
           const content = (
             <>
               {participant.image ? (
-                <div className="relative h-52">
+                <div className="relative h-44 sm:h-52">
                   <Image
                     src={participant.image}
                     alt={participant.displayName}
@@ -754,11 +801,11 @@ function ParticipantsPanel({
                   />
                 </div>
               ) : (
-                <div className="grid h-52 place-items-center bg-primary/10 text-primary">
+                <div className="grid h-44 place-items-center bg-primary/10 text-primary sm:h-52">
                   <Users className="h-8 w-8" />
                 </div>
               )}
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate font-semibold">{participant.displayName}</div>
@@ -775,11 +822,11 @@ function ParticipantsPanel({
                     View Golf Sheet stats <ArrowUpRight className="h-3.5 w-3.5" />
                   </div>
                 )}
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-2 gap-1.5 sm:gap-2">
                   <MiniMetric label="Net" value={formatNumber(row?.netTotal ?? null)} />
                   <MiniMetric label="Scores" value={row?.scoreCount ?? 0} />
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="mt-2 grid grid-cols-2 gap-1.5 sm:gap-2">
                   <MiniMetric label="Solo wins" value={participant.individualWins} />
                   <MiniMetric label="Team wins" value={participant.teamWins} />
                 </div>
@@ -821,10 +868,12 @@ function CourseGuidePanel({
   guides: ReturnType<typeof getTournamentCourseGuides>;
 }) {
   return (
-    <section id="course-guide" className="space-y-4">
+    <section id="course-guide" className="scroll-mt-28 space-y-4">
       <div>
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">Course guide</p>
-        <h2 className="mt-2 font-serif text-4xl font-bold tracking-tight">Scout the trouble</h2>
+        <h2 className="mt-2 font-serif text-3xl font-bold tracking-tight sm:text-4xl">
+          Scout the trouble
+        </h2>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {edition.courses.map((entry) => {
@@ -832,7 +881,7 @@ function CourseGuidePanel({
           const teeTime = getTournamentCourseTeeTime(edition, entry.dayLabel);
           return (
             <Card key={entry.id} className={`${tournamentCardClass} overflow-hidden p-0`}>
-              <div className="relative h-56 bg-secondary">
+              <div className="relative h-48 bg-secondary sm:h-56">
                 {guide?.image && (
                   <Image
                     src={guide.image}
@@ -845,16 +894,16 @@ function CourseGuidePanel({
                 <div className="absolute inset-0 bg-[#123524]/35" />
                 <div className="absolute bottom-4 left-4 right-4">
                   <Badge className="mb-2">{guide?.tagline ?? `Round ${entry.roundNumber}`}</Badge>
-                  <h3 className="font-serif text-3xl font-bold tracking-tight text-[#fffaf0]">
+                  <h3 className="font-serif text-2xl font-bold tracking-tight text-[#fffaf0] sm:text-3xl">
                     {entry.course.name}
                   </h3>
                 </div>
               </div>
-              <div className="p-5">
+              <div className="p-4 sm:p-5">
                 <p className="text-sm leading-6 text-muted-foreground">
                   {guide?.summary ?? entry.notes ?? "Tournament course details coming soon."}
                 </p>
-                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="mt-4 grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
                   <MiniMetric label="Day" value={entry.dayLabel ?? "-"} />
                   <MiniMetric label="Tee time" value={teeTime ?? "-"} />
                   <MiniMetric label="Holes" value={entry.holeCount} />
@@ -874,14 +923,14 @@ function CourseGuidePanel({
 
 function HoleMapCarousel({ courseName, mapPrefix }: { courseName: string; mapPrefix: string }) {
   return (
-    <div className="-mx-5 mt-5 overflow-x-auto px-5 pb-2">
+    <div className="-mx-4 mt-5 overflow-x-auto px-4 pb-2 sm:-mx-5 sm:px-5">
       <div className="flex snap-x snap-mandatory gap-3">
         {Array.from({ length: 18 }, (_, index) => index + 1).map((hole) => (
           <div
             key={`${courseName}-${hole}`}
-            className="w-[76vw] shrink-0 snap-start overflow-hidden rounded-md border border-border bg-card sm:w-56"
+            className="w-[78vw] shrink-0 snap-start overflow-hidden rounded-md border border-border bg-card sm:w-56"
           >
-            <div className="relative h-72">
+            <div className="relative h-64 sm:h-72">
               <Image
                 src={`${mapPrefix}${hole}.webp`}
                 alt={`${courseName} hole ${hole}`}
@@ -917,26 +966,30 @@ function StatTile({
   icon: Icon,
   label,
   value,
+  className = "",
 }: {
   icon: ComponentType<{ className?: string }>;
   label: string;
   value: string | number;
+  className?: string;
 }) {
   return (
-    <Card className={`${tournamentCardClass} p-4`}>
-      <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+    <Card className={`${tournamentCardClass} p-3 sm:p-4 ${className}`}>
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground sm:gap-2 sm:text-xs">
         <Icon className="h-3.5 w-3.5" /> {label}
       </div>
-      <div className="number-mono mt-2 text-3xl font-semibold">{value}</div>
+      <div className="number-mono mt-1.5 text-2xl font-semibold sm:mt-2 sm:text-3xl">{value}</div>
     </Card>
   );
 }
 
 function MiniMetric({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="rounded-md bg-secondary p-2">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="number-mono mt-1 truncate text-base font-semibold">{value}</div>
+    <div className="min-w-0 rounded-md bg-secondary p-2">
+      <div className="truncate text-[9px] uppercase tracking-wider text-muted-foreground sm:text-[10px]">
+        {label}
+      </div>
+      <div className="number-mono mt-1 truncate text-sm font-semibold sm:text-base">{value}</div>
     </div>
   );
 }
