@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getTournamentScoreSubmissionState } from "@/lib/tournament-submissions";
 
 export const TITS_OPEN_SLUG = "tits-open";
 
@@ -174,6 +175,8 @@ export async function getTournamentRoundSubmitContext(
       id: true,
       year: true,
       title: true,
+      config: true,
+      series: { select: { slug: true } },
       courses: {
         include: {
           course: { select: { id: true, name: true } },
@@ -195,6 +198,12 @@ export async function getTournamentRoundSubmitContext(
 
   const participant = edition?.participants[0];
   if (!edition || !participant) return null;
+  const submissionState = getTournamentScoreSubmissionState({
+    seriesSlug: edition.series.slug,
+    year: edition.year,
+    config: edition.config,
+  });
+  if (!submissionState.isOpen) return null;
 
   const teeTimesByDay = new Map(
     edition.schedule.map((item) => [item.dayLabel.toLowerCase(), item.timeLabel]),

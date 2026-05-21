@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Prisma } from "@prisma/client";
+import { getTournamentScoreSubmissionState } from "@/lib/tournament-submissions";
 
 export class TournamentRoundLinkError extends Error {
   constructor(message: string) {
@@ -39,18 +40,43 @@ export async function createOrUpdateLinkedTournamentScore(
     userId: string;
   },
 ) {
-  const participant = await tx.tournamentParticipant.findFirst({
-    where: {
-      editionId,
-      userId,
-      role: { not: "CADDIE" },
-    },
-    select: {
-      id: true,
-      handicapSnapshot: true,
-      courseHandicapSnapshot: true,
-    },
+  const [edition, participant] = await Promise.all([
+    tx.tournamentEdition.findUnique({
+      where: { id: editionId },
+      select: {
+        year: true,
+        config: true,
+        series: { select: { slug: true } },
+      },
+    }),
+    tx.tournamentParticipant.findFirst({
+      where: {
+        editionId,
+        userId,
+        role: { not: "CADDIE" },
+      },
+      select: {
+        id: true,
+        handicapSnapshot: true,
+        courseHandicapSnapshot: true,
+      },
+    }),
+  ]);
+  if (!edition) {
+    throw new TournamentRoundLinkError("Tournament edition was not found.");
+  }
+
+  const submissionState = getTournamentScoreSubmissionState({
+    seriesSlug: edition.series.slug,
+    year: edition.year,
+    config: edition.config,
   });
+  if (!submissionState.isOpen) {
+    throw new TournamentRoundLinkError(
+      `Tournament score submission opens ${submissionState.opensAtLabel}.`,
+    );
+  }
+
   if (!participant) {
     throw new TournamentRoundLinkError("You are not linked to a player in this tournament.");
   }

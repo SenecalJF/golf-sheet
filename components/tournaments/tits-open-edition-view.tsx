@@ -54,11 +54,13 @@ export function TitsOpenEditionView({
   editions,
   isAdmin,
   scoreSubmitHref,
+  scoreSubmitLockedLabel,
 }: {
   edition: TournamentEditionFull;
   editions: EditionSummary[];
   isAdmin: boolean;
   scoreSubmitHref?: string | null;
+  scoreSubmitLockedLabel?: string | null;
 }) {
   if (edition.layoutKey === "tits-open-2025-empty") {
     return (
@@ -67,6 +69,7 @@ export function TitsOpenEditionView({
         editions={editions}
         isAdmin={isAdmin}
         scoreSubmitHref={scoreSubmitHref}
+        scoreSubmitLockedLabel={scoreSubmitLockedLabel}
       />
     );
   }
@@ -77,6 +80,7 @@ export function TitsOpenEditionView({
       editions={editions}
       isAdmin={isAdmin}
       scoreSubmitHref={scoreSubmitHref}
+      scoreSubmitLockedLabel={scoreSubmitLockedLabel}
     />
   );
 }
@@ -86,11 +90,13 @@ function TitsOpen2026View({
   editions,
   isAdmin,
   scoreSubmitHref,
+  scoreSubmitLockedLabel,
 }: {
   edition: TournamentEditionFull;
   editions: EditionSummary[];
   isAdmin: boolean;
   scoreSubmitHref?: string | null;
+  scoreSubmitLockedLabel?: string | null;
 }) {
   const playerRows = buildParticipantLeaderboard(edition);
   const teamRows = buildTeamLeaderboard(edition);
@@ -109,6 +115,7 @@ function TitsOpen2026View({
         isAdmin={isAdmin}
         quote={quote}
         scoreSubmitHref={scoreSubmitHref}
+        scoreSubmitLockedLabel={scoreSubmitLockedLabel}
       />
 
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
@@ -188,11 +195,13 @@ function TitsOpenArchiveShell({
   editions,
   isAdmin,
   scoreSubmitHref,
+  scoreSubmitLockedLabel,
 }: {
   edition: TournamentEditionFull;
   editions: EditionSummary[];
   isAdmin: boolean;
   scoreSubmitHref?: string | null;
+  scoreSubmitLockedLabel?: string | null;
 }) {
   return (
     <div
@@ -205,6 +214,7 @@ function TitsOpenArchiveShell({
         isAdmin={isAdmin}
         quote="This archive is ready for the original teams, course, photos, and scores."
         scoreSubmitHref={scoreSubmitHref}
+        scoreSubmitLockedLabel={scoreSubmitLockedLabel}
       />
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <Card className={`${tournamentCardClass} p-8`}>
@@ -237,12 +247,14 @@ function EditionHero({
   isAdmin,
   quote,
   scoreSubmitHref,
+  scoreSubmitLockedLabel,
 }: {
   edition: TournamentEditionFull;
   editions: EditionSummary[];
   isAdmin: boolean;
   quote: string | null;
   scoreSubmitHref?: string | null;
+  scoreSubmitLockedLabel?: string | null;
 }) {
   return (
     <section className="relative min-h-[calc(100svh-8rem)] w-full overflow-hidden border-b border-[#c9a227]/50 bg-[#123524]">
@@ -327,6 +339,20 @@ function EditionHero({
                   <Camera className="mr-1 h-4 w-4" /> Submit scorecard
                 </Link>
               </Button>
+            )}
+            {!scoreSubmitHref && scoreSubmitLockedLabel && (
+              <div className="flex min-w-0 flex-col gap-1">
+                <Button
+                  disabled
+                  variant="secondary"
+                  className="bg-[#fffaf0] text-[#123524] opacity-80"
+                >
+                  <Camera className="mr-1 h-4 w-4" /> Scorecard locked
+                </Button>
+                <span className="text-xs font-medium text-[#fffaf0]/80">
+                  {scoreSubmitLockedLabel}
+                </span>
+              </div>
             )}
             <Button
               asChild

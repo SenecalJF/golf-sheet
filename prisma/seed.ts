@@ -537,6 +537,7 @@ async function seedTitsOpenHonors(seriesId: string, edition2025Id: string) {
 function titsOpen2026Config() {
   return {
     eyebrow: "Summer 2026",
+    scoreSubmissionOpensAt: "2026-07-18T10:00:00.000Z",
     quote:
       "Le tournoi de golf où ça s'joue pas juste sur dix-huit trous! Think big, sti!",
     courseGuide: [

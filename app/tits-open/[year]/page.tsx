@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { TitsOpenEditionView } from "@/components/tournaments/tits-open-edition-view";
 import { requireUser } from "@/lib/auth-utils";
+import { getTournamentScoreSubmissionState } from "@/lib/tournament-submissions";
 import { getTitsOpenEditionByYear, listTitsOpenEditions } from "@/lib/tournaments";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,19 @@ export default async function TitsOpenYearPage({
   const participant = edition.participants.find(
     (item) => item.userId === user.id && item.role !== "CADDIE",
   );
+  const scoreSubmission = getTournamentScoreSubmissionState({
+    seriesSlug: edition.series.slug,
+    year: edition.year,
+    config: edition.config,
+  });
+  const scoreSubmitHref =
+    participant && scoreSubmission.isOpen
+      ? `/rounds/new?tournamentEditionId=${edition.id}`
+      : null;
+  const scoreSubmitLockedLabel =
+    participant && !scoreSubmission.isOpen && scoreSubmission.opensAtLabel
+      ? `Opens ${scoreSubmission.opensAtLabel}`
+      : null;
 
   return (
     <TitsOpenEditionView
@@ -33,7 +47,8 @@ export default async function TitsOpenYearPage({
         status: item.status,
       }))}
       isAdmin={user.isAdmin}
-      scoreSubmitHref={participant ? `/rounds/new?tournamentEditionId=${edition.id}` : null}
+      scoreSubmitHref={scoreSubmitHref}
+      scoreSubmitLockedLabel={scoreSubmitLockedLabel}
     />
   );
 }
