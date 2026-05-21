@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { RoundCreateInputSchema } from "@/lib/types";
 import { holeCreateRows, summarizeRoundScore, validateRoundHoles } from "@/lib/round-scoring";
 import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
+import {
+  createOrUpdateLinkedTournamentScore,
+  TournamentRoundLinkError,
+} from "@/lib/tournament-round-linking";
 
 export async function GET() {
   const user = await requireApiUser();
@@ -90,38 +94,11 @@ export async function POST(req: Request) {
   }
   const summary = summarizeRoundScore(d, tee);
 
-  const round = await prisma.$transaction(async (tx) => {
-    const createdRound = await tx.round.create({
-      data: {
-        userId: user.id,
-        courseId: d.courseId,
-        teeId: d.teeId ?? null,
-        date,
-        holeCount: d.holeCount,
-        nineType: d.holeCount === 9 ? d.nineType ?? null : null,
-        notes: d.notes ?? null,
-        weather: d.weather ?? null,
-        pcc: d.pcc,
-        totalStrokes: summary.totalStrokes,
-        totalPar: summary.totalPar,
-        scoreDiff: summary.scoreDiff,
-        sourceImage: d.sourceImage ?? null,
-        extractionModel: d.extractionModel ?? null,
-        holes: { create: holeCreateRows(d.holes) },
-      },
-      include: { holes: true, course: true, tee: true },
-    });
-
-    for (const assignment of d.pendingAssignments ?? []) {
-      const assignmentSummary = summarizeRoundScore(
-        { ...d, holes: assignment.holes },
-        tee,
-        "pending",
-      );
-      await tx.pendingRound.create({
+  try {
+    const round = await prisma.$transaction(async (tx) => {
+      const createdRound = await tx.round.create({
         data: {
-          senderUserId: user.id,
-          recipientUserId: assignment.recipientUserId,
+          userId: user.id,
           courseId: d.courseId,
           teeId: d.teeId ?? null,
           date,
@@ -130,22 +107,64 @@ export async function POST(req: Request) {
           notes: d.notes ?? null,
           weather: d.weather ?? null,
           pcc: d.pcc,
-          totalStrokes: assignmentSummary.totalStrokes,
-          totalPar: assignmentSummary.totalPar,
-          scoreDiff: assignmentSummary.scoreDiff,
+          totalStrokes: summary.totalStrokes,
+          totalPar: summary.totalPar,
+          scoreDiff: summary.scoreDiff,
           sourceImage: d.sourceImage ?? null,
           extractionModel: d.extractionModel ?? null,
-          scorecardPlayerName: assignment.scorecardPlayerName ?? null,
-          scorecardRowLabel: assignment.scorecardRowLabel ?? null,
-          rowConfidence: assignment.rowConfidence ?? null,
-          rowNotes: assignment.rowNotes ?? null,
-          holes: { create: holeCreateRows(assignment.holes) },
+          holes: { create: holeCreateRows(d.holes) },
         },
+        include: { holes: true, course: true, tee: true },
       });
+
+      for (const assignment of d.pendingAssignments ?? []) {
+        const assignmentSummary = summarizeRoundScore(
+          { ...d, holes: assignment.holes },
+          tee,
+          "pending",
+        );
+        await tx.pendingRound.create({
+          data: {
+            senderUserId: user.id,
+            recipientUserId: assignment.recipientUserId,
+            courseId: d.courseId,
+            teeId: d.teeId ?? null,
+            date,
+            holeCount: d.holeCount,
+            nineType: d.holeCount === 9 ? d.nineType ?? null : null,
+            notes: d.notes ?? null,
+            weather: d.weather ?? null,
+            pcc: d.pcc,
+            totalStrokes: assignmentSummary.totalStrokes,
+            totalPar: assignmentSummary.totalPar,
+            scoreDiff: assignmentSummary.scoreDiff,
+            sourceImage: d.sourceImage ?? null,
+            extractionModel: d.extractionModel ?? null,
+            scorecardPlayerName: assignment.scorecardPlayerName ?? null,
+            scorecardRowLabel: assignment.scorecardRowLabel ?? null,
+            rowConfidence: assignment.rowConfidence ?? null,
+            rowNotes: assignment.rowNotes ?? null,
+            holes: { create: holeCreateRows(assignment.holes) },
+          },
+        });
+      }
+
+      if (d.tournamentScore) {
+        await createOrUpdateLinkedTournamentScore(tx, {
+          editionId: d.tournamentScore.editionId,
+          editionCourseId: d.tournamentScore.editionCourseId,
+          round: createdRound,
+          userId: user.id,
+        });
+      }
+
+      return createdRound;
+    });
+    return NextResponse.json(round, { status: 201 });
+  } catch (error) {
+    if (error instanceof TournamentRoundLinkError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-
-    return createdRound;
-  });
-
-  return NextResponse.json(round, { status: 201 });
+    throw error;
+  }
 }

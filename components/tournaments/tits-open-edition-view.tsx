@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import {
   CalendarDays,
+  Camera,
   Flag,
   Map as MapIcon,
   Medal,
@@ -52,26 +53,44 @@ export function TitsOpenEditionView({
   edition,
   editions,
   isAdmin,
+  scoreSubmitHref,
 }: {
   edition: TournamentEditionFull;
   editions: EditionSummary[];
   isAdmin: boolean;
+  scoreSubmitHref?: string | null;
 }) {
   if (edition.layoutKey === "tits-open-2025-empty") {
-    return <TitsOpenArchiveShell edition={edition} editions={editions} isAdmin={isAdmin} />;
+    return (
+      <TitsOpenArchiveShell
+        edition={edition}
+        editions={editions}
+        isAdmin={isAdmin}
+        scoreSubmitHref={scoreSubmitHref}
+      />
+    );
   }
 
-  return <TitsOpen2026View edition={edition} editions={editions} isAdmin={isAdmin} />;
+  return (
+    <TitsOpen2026View
+      edition={edition}
+      editions={editions}
+      isAdmin={isAdmin}
+      scoreSubmitHref={scoreSubmitHref}
+    />
+  );
 }
 
 function TitsOpen2026View({
   edition,
   editions,
   isAdmin,
+  scoreSubmitHref,
 }: {
   edition: TournamentEditionFull;
   editions: EditionSummary[];
   isAdmin: boolean;
+  scoreSubmitHref?: string | null;
 }) {
   const playerRows = buildParticipantLeaderboard(edition);
   const teamRows = buildTeamLeaderboard(edition);
@@ -84,7 +103,13 @@ function TitsOpen2026View({
       className="relative left-1/2 -mx-4 -my-6 w-screen -translate-x-1/2 bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:-my-10"
       style={titsOpenThemeStyle}
     >
-      <EditionHero edition={edition} editions={editions} isAdmin={isAdmin} quote={quote} />
+      <EditionHero
+        edition={edition}
+        editions={editions}
+        isAdmin={isAdmin}
+        quote={quote}
+        scoreSubmitHref={scoreSubmitHref}
+      />
 
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -162,10 +187,12 @@ function TitsOpenArchiveShell({
   edition,
   editions,
   isAdmin,
+  scoreSubmitHref,
 }: {
   edition: TournamentEditionFull;
   editions: EditionSummary[];
   isAdmin: boolean;
+  scoreSubmitHref?: string | null;
 }) {
   return (
     <div
@@ -177,6 +204,7 @@ function TitsOpenArchiveShell({
         editions={editions}
         isAdmin={isAdmin}
         quote="This archive is ready for the original teams, course, photos, and scores."
+        scoreSubmitHref={scoreSubmitHref}
       />
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <Card className={`${tournamentCardClass} p-8`}>
@@ -208,11 +236,13 @@ function EditionHero({
   editions,
   isAdmin,
   quote,
+  scoreSubmitHref,
 }: {
   edition: TournamentEditionFull;
   editions: EditionSummary[];
   isAdmin: boolean;
   quote: string | null;
+  scoreSubmitHref?: string | null;
 }) {
   return (
     <section className="relative min-h-[calc(100svh-8rem)] w-full overflow-hidden border-b border-[#c9a227]/50 bg-[#123524]">
@@ -287,6 +317,17 @@ function EditionHero({
                 <Trophy className="mr-1 h-4 w-4" /> Leaderboard
               </a>
             </Button>
+            {scoreSubmitHref && (
+              <Button
+                asChild
+                variant="secondary"
+                className="bg-[#fffaf0] text-[#123524] hover:bg-[#c9a227]"
+              >
+                <Link href={scoreSubmitHref}>
+                  <Camera className="mr-1 h-4 w-4" /> Submit scorecard
+                </Link>
+              </Button>
+            )}
             <Button
               asChild
               variant="outline"
@@ -591,6 +632,7 @@ function CourseGuidePanel({
       <div className="grid gap-4 lg:grid-cols-2">
         {edition.courses.map((entry) => {
           const guide = guides.find((item) => item.courseName === entry.course.name);
+          const teeTime = getTournamentCourseTeeTime(edition, entry.dayLabel);
           return (
             <Card key={entry.id} className={`${tournamentCardClass} overflow-hidden p-0`}>
               <div className="relative h-56 bg-secondary">
@@ -615,8 +657,9 @@ function CourseGuidePanel({
                 <p className="text-sm leading-6 text-muted-foreground">
                   {guide?.summary ?? entry.notes ?? "Tournament course details coming soon."}
                 </p>
-                <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <MiniMetric label="Day" value={entry.dayLabel ?? "-"} />
+                  <MiniMetric label="Tee time" value={teeTime ?? "-"} />
                   <MiniMetric label="Holes" value={entry.holeCount} />
                   <MiniMetric label="Tee" value={entry.tee?.name ?? "-"} />
                 </div>
@@ -658,6 +701,19 @@ function HoleMapCarousel({ courseName, mapPrefix }: { courseName: string; mapPre
       </div>
     </div>
   );
+}
+
+function getTournamentCourseTeeTime(
+  edition: TournamentEditionFull,
+  dayLabel: string | null,
+) {
+  if (!dayLabel) return null;
+  const teeOff = edition.schedule.find(
+    (item) =>
+      item.dayLabel.toLowerCase() === dayLabel.toLowerCase() &&
+      item.title.toLowerCase() === "tee off",
+  );
+  return teeOff?.timeLabel ?? null;
 }
 
 function StatTile({

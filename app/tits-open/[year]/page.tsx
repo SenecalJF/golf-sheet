@@ -20,6 +20,9 @@ export default async function TitsOpenYearPage({
     listTitsOpenEditions(),
   ]);
   if (!edition) notFound();
+  const participant = edition.participants.find(
+    (item) => item.userId === user.id && item.role !== "CADDIE",
+  );
 
   return (
     <TitsOpenEditionView
@@ -30,6 +33,7 @@ export default async function TitsOpenYearPage({
         status: item.status,
       }))}
       isAdmin={user.isAdmin}
+      scoreSubmitHref={participant ? `/rounds/new?tournamentEditionId=${edition.id}` : null}
     />
   );
 }

@@ -41,6 +41,25 @@ export type TournamentCourseGuide = {
   summary: string | null;
 };
 
+export type TournamentRoundSubmitContext = {
+  editionId: string;
+  year: number;
+  title: string;
+  participantName: string;
+  courses: {
+    id: string;
+    roundNumber: number;
+    dayLabel: string | null;
+    teeTime: string | null;
+    teeTimeLabel: string | null;
+    courseId: string;
+    courseName: string;
+    teeId: string | null;
+    teeName: string | null;
+    holeCount: 9 | 18;
+  }[];
+};
+
 export const tournamentEditionInclude = {
   series: {
     include: {
@@ -143,6 +162,62 @@ export async function getTitsOpenEditionByYear(year: number) {
     where: { year, series: { slug: TITS_OPEN_SLUG } },
     include: tournamentEditionInclude,
   });
+}
+
+export async function getTournamentRoundSubmitContext(
+  editionId: string,
+  userId: string,
+): Promise<TournamentRoundSubmitContext | null> {
+  const edition = await prisma.tournamentEdition.findFirst({
+    where: { id: editionId, series: { slug: TITS_OPEN_SLUG } },
+    select: {
+      id: true,
+      year: true,
+      title: true,
+      courses: {
+        include: {
+          course: { select: { id: true, name: true } },
+          tee: { select: { id: true, name: true } },
+        },
+        orderBy: { roundNumber: "asc" },
+      },
+      participants: {
+        where: { userId, role: { not: "CADDIE" } },
+        select: { displayName: true },
+        take: 1,
+      },
+      schedule: {
+        where: { title: { equals: "Tee off", mode: "insensitive" } },
+        select: { dayLabel: true, timeLabel: true },
+      },
+    },
+  });
+
+  const participant = edition?.participants[0];
+  if (!edition || !participant) return null;
+
+  const teeTimesByDay = new Map(
+    edition.schedule.map((item) => [item.dayLabel.toLowerCase(), item.timeLabel]),
+  );
+
+  return {
+    editionId: edition.id,
+    year: edition.year,
+    title: edition.title,
+    participantName: participant.displayName,
+    courses: edition.courses.map((entry) => ({
+      id: entry.id,
+      roundNumber: entry.roundNumber,
+      dayLabel: entry.dayLabel,
+      teeTime: entry.teeTime?.toISOString() ?? null,
+      teeTimeLabel: entry.dayLabel ? teeTimesByDay.get(entry.dayLabel.toLowerCase()) ?? null : null,
+      courseId: entry.course.id,
+      courseName: entry.course.name,
+      teeId: entry.tee?.id ?? null,
+      teeName: entry.tee?.name ?? null,
+      holeCount: entry.holeCount === 9 ? 9 : 18,
+    })),
+  };
 }
 
 export async function getTournamentAdminOptions(edition: TournamentEditionFull) {

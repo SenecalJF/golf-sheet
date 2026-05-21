@@ -12,6 +12,7 @@ import {
   Save,
   Sparkles,
   Trash2,
+  Trophy,
   UploadCloud,
   UserPlus,
   Users,
@@ -77,6 +78,25 @@ type PendingAssignment = {
   recipientUserId: string;
 };
 
+type TournamentRoundContext = {
+  editionId: string;
+  year: number;
+  title: string;
+  participantName: string;
+  courses: {
+    id: string;
+    roundNumber: number;
+    dayLabel: string | null;
+    teeTime: string | null;
+    teeTimeLabel: string | null;
+    courseId: string;
+    courseName: string;
+    teeId: string | null;
+    teeName: string | null;
+    holeCount: 9 | 18;
+  }[];
+};
+
 type SelectedFile = {
   file: File;
   previewUrl: string;
@@ -115,12 +135,19 @@ export function NewRoundFlow({
   courses,
   aiEnabled,
   shareableUsers,
+  tournamentContext,
 }: {
   courses: CourseWithTees[];
   aiEnabled: boolean;
   shareableUsers: ShareableUser[];
+  tournamentContext?: TournamentRoundContext | null;
 }) {
   const router = useRouter();
+  const initialTournamentCourse = tournamentContext?.courses[0] ?? null;
+  const initialHoleCount = initialTournamentCourse?.holeCount ?? 18;
+  const initialTournamentTee = initialTournamentCourse
+    ? findTournamentEntryTee(courses, initialTournamentCourse)
+    : null;
   const draftSnapshot = React.useSyncExternalStore(
     subscribeToDraft,
     readDraftSnapshot,
@@ -128,12 +155,19 @@ export function NewRoundFlow({
   );
   const savedDraft = React.useMemo(() => parseRoundDraft(draftSnapshot), [draftSnapshot]);
   const [mode, setMode] = React.useState<"choose" | "ai" | "manual">("choose");
-  const [courseId, setCourseId] = React.useState<string>("");
-  const [teeId, setTeeId] = React.useState<string>("");
+  const [courseId, setCourseId] = React.useState<string>(initialTournamentCourse?.courseId ?? "");
+  const [teeId, setTeeId] = React.useState<string>(initialTournamentCourse?.teeId ?? "");
   const [date, setDate] = React.useState(() => new Date().toISOString().slice(0, 10));
-  const [holeCount, setHoleCount] = React.useState<9 | 18>(18);
+  const [holeCount, setHoleCount] = React.useState<9 | 18>(initialHoleCount);
   const [nineType, setNineType] = React.useState<"front" | "back" | null>(null);
-  const [holes, setHoles] = React.useState<GridHole[]>(buildBlankHoles(18));
+  const [holes, setHoles] = React.useState<GridHole[]>(() =>
+    applyTeePars(
+      buildBlankHoles(initialHoleCount),
+      initialTournamentTee?.pars,
+      initialHoleCount,
+      null,
+    ),
+  );
   const [notes, setNotes] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [sourceImages, setSourceImages] = React.useState<string[]>([]);
@@ -148,10 +182,17 @@ export function NewRoundFlow({
   const [detectedPlayers, setDetectedPlayers] = React.useState<DetectedPlayer[]>([]);
   const [selectedPlayerIndex, setSelectedPlayerIndex] = React.useState<number | null>(null);
   const [pendingAssignments, setPendingAssignments] = React.useState<PendingAssignment[]>([]);
+  const [tournamentEditionCourseId, setTournamentEditionCourseId] = React.useState(
+    tournamentContext?.courses[0]?.id ?? "",
+  );
   const filesRef = React.useRef<SelectedFile[]>([]);
 
   const selectedCourse = courses.find((c) => c.id === courseId);
   const selectedTee = selectedCourse?.tees.find((t) => t.id === teeId);
+  const selectedTournamentCourse =
+    tournamentContext?.courses.find((entry) => entry.id === tournamentEditionCourseId) ??
+    tournamentContext?.courses[0] ??
+    null;
 
   const chosenDetectedTee =
     detectedTees.find(
@@ -237,6 +278,26 @@ export function NewRoundFlow({
   function updateNineType(nextNineType: "front" | "back" | null) {
     setNineType(nextNineType);
     setHoles((prev) => applyTeePars(prev, selectedTee?.pars, holeCount, nextNineType));
+  }
+
+  function chooseTournamentCourse(entryId: string) {
+    const entry = tournamentContext?.courses.find((item) => item.id === entryId);
+    if (!entry) return;
+    const tee = findTournamentEntryTee(courses, entry);
+
+    setTournamentEditionCourseId(entry.id);
+    setCourseId(entry.courseId);
+    setTeeId(entry.teeId ?? "");
+    setHoleCount(entry.holeCount);
+    setNineType(null);
+    setHoles((prev) =>
+      applyTeePars(
+        prev.length === entry.holeCount ? prev : buildBlankHoles(entry.holeCount, prev),
+        tee?.pars,
+        entry.holeCount,
+        null,
+      ),
+    );
   }
 
   function addFiles(picked: FileList | null) {
@@ -472,6 +533,12 @@ export function NewRoundFlow({
             detectedPlayers,
             pendingAssignments,
           ),
+          tournamentScore: tournamentContext
+            ? {
+                editionId: tournamentContext.editionId,
+                editionCourseId: selectedTournamentCourse?.id ?? null,
+              }
+            : undefined,
         }),
       });
       if (!res.ok) {
@@ -480,7 +547,9 @@ export function NewRoundFlow({
       }
       const round = await res.json();
       clearRoundDraft();
-      toast.success("Round saved");
+      toast.success(
+        tournamentContext ? "Round saved and counted for the tournament" : "Round saved",
+      );
       router.push(`/rounds/${round.id}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
@@ -558,14 +627,26 @@ export function NewRoundFlow({
     <div className={cn("space-y-8", mode !== "choose" && "pb-28 lg:pb-0")}>
       <div className="flex items-end justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-primary">New round</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Log a scorecard</h1>
+          <p className="text-sm uppercase tracking-[0.18em] text-primary">
+            {tournamentContext ? `Tits Open ${tournamentContext.year}` : "New round"}
+          </p>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+            {tournamentContext ? "Submit tournament scorecard" : "Log a scorecard"}
+          </h1>
         </div>
       </div>
 
+      {tournamentContext && (
+        <TournamentContextCard
+          context={tournamentContext}
+          selectedCourseId={selectedTournamentCourse?.id ?? ""}
+          onSelectCourse={chooseTournamentCourse}
+        />
+      )}
+
       {mode === "choose" && (
         <div className="space-y-4">
-          {savedDraft && (
+          {savedDraft && !tournamentContext && (
             <DraftRestoreCard
               draft={savedDraft}
               courses={courses}
@@ -629,6 +710,14 @@ export function NewRoundFlow({
 
       {mode !== "choose" && (
         <Card className="space-y-6 p-6">
+          {tournamentContext && tournamentContext.courses.length > 1 && (
+            <TournamentRoundPicker
+              context={tournamentContext}
+              selectedCourseId={selectedTournamentCourse?.id ?? ""}
+              onSelectCourse={chooseTournamentCourse}
+            />
+          )}
+
           <CourseDateBlock
             courses={courses}
             courseId={courseId}
@@ -766,6 +855,120 @@ export function NewRoundFlow({
       )}
     </div>
   );
+}
+
+function TournamentContextCard({
+  context,
+  selectedCourseId,
+  onSelectCourse,
+}: {
+  context: TournamentRoundContext;
+  selectedCourseId: string;
+  onSelectCourse: (id: string) => void;
+}) {
+  const selected = context.courses.find((entry) => entry.id === selectedCourseId);
+
+  return (
+    <Card className="border-primary/35 bg-primary/5 p-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <Trophy className="h-4 w-4 text-primary" />
+            {context.title}
+          </div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            Linked as {context.participantName}
+            {selected ? ` - ${formatTournamentCourseLabel(selected)}` : ""}
+          </div>
+        </div>
+        {context.courses.length > 1 && (
+          <div className="w-full md:w-72">
+            <TournamentCourseSelect
+              context={context}
+              selectedCourseId={selectedCourseId}
+              onSelectCourse={onSelectCourse}
+            />
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function TournamentRoundPicker({
+  context,
+  selectedCourseId,
+  onSelectCourse,
+}: {
+  context: TournamentRoundContext;
+  selectedCourseId: string;
+  onSelectCourse: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+      <Label className="text-xs uppercase tracking-wider text-primary">Tournament round</Label>
+      <div className="mt-2 max-w-md">
+        <TournamentCourseSelect
+          context={context}
+          selectedCourseId={selectedCourseId}
+          onSelectCourse={onSelectCourse}
+        />
+      </div>
+    </div>
+  );
+}
+
+function TournamentCourseSelect({
+  context,
+  selectedCourseId,
+  onSelectCourse,
+}: {
+  context: TournamentRoundContext;
+  selectedCourseId: string;
+  onSelectCourse: (id: string) => void;
+}) {
+  return (
+    <Select
+      value={selectedCourseId}
+      onValueChange={(value) => onSelectCourse(value ?? "")}
+      items={context.courses.map((entry) => ({
+        label: formatTournamentCourseLabel(entry),
+        value: entry.id,
+      }))}
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Choose tournament round" />
+      </SelectTrigger>
+      <SelectContent>
+        {context.courses.map((entry) => (
+          <SelectItem key={entry.id} value={entry.id}>
+            {formatTournamentCourseLabel(entry)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function formatTournamentCourseLabel(entry: TournamentRoundContext["courses"][number]) {
+  return [
+    `Round ${entry.roundNumber}`,
+    entry.dayLabel,
+    entry.teeTimeLabel,
+    entry.courseName,
+    entry.teeName ? `${entry.teeName} tee` : null,
+  ]
+    .filter(Boolean)
+    .join(" - ");
+}
+
+function findTournamentEntryTee(
+  courses: CourseWithTees[],
+  entry: TournamentRoundContext["courses"][number],
+) {
+  return courses
+    .find((course) => course.id === entry.courseId)
+    ?.tees.find((tee) => tee.id === entry.teeId);
 }
 
 function DraftRestoreCard({

@@ -73,14 +73,21 @@ export const PendingRoundAssignmentSchema = z.object({
   holes: z.array(HoleInputSchema).min(9).max(18),
 });
 
+export const TournamentRoundLinkInputSchema = z.object({
+  editionId: z.string().min(1),
+  editionCourseId: z.string().min(1).nullable().optional(),
+});
+
 export const RoundCreateInputSchema = RoundInputSchema.extend({
   pendingAssignments: z.array(PendingRoundAssignmentSchema).max(8).optional(),
+  tournamentScore: TournamentRoundLinkInputSchema.optional(),
 });
 
 export type RoundInput = z.infer<typeof RoundInputSchema>;
 export type RoundCreateInput = z.infer<typeof RoundCreateInputSchema>;
 export type HoleInput = z.infer<typeof HoleInputSchema>;
 export type PendingRoundAssignment = z.infer<typeof PendingRoundAssignmentSchema>;
+export type TournamentRoundLinkInput = z.infer<typeof TournamentRoundLinkInputSchema>;
 
 export const CourseInputSchema = z.object({
   name: z.string().min(2),
