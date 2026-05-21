@@ -28,6 +28,18 @@ export type PublicPlayerStats = {
     name: string;
     image: string | null;
   };
+  tournamentIdentities: {
+    id: string;
+    year: number;
+    title: string;
+    displayName: string;
+    nickname: string | null;
+    role: string;
+    image: string | null;
+    teamName: string | null;
+    individualWins: number;
+    teamWins: number;
+  }[];
   roundsAllTime: number;
   roundsThisYear: number;
   handicapIndex: number | null;
@@ -199,6 +211,10 @@ export async function listPublicPlayerStats(): Promise<PublicPlayerStats[]> {
       id: true,
       name: true,
       image: true,
+      tournamentParticipants: {
+        select: publicTournamentIdentitySelect,
+        orderBy: [{ edition: { year: "desc" } }, { displayOrder: "asc" }],
+      },
       rounds: {
         include: roundFullInclude,
         orderBy: { date: "desc" },
@@ -219,6 +235,10 @@ export async function getPublicPlayerStats(playerId: string): Promise<PublicPlay
       id: true,
       name: true,
       image: true,
+      tournamentParticipants: {
+        select: publicTournamentIdentitySelect,
+        orderBy: [{ edition: { year: "desc" } }, { displayOrder: "asc" }],
+      },
       rounds: {
         include: roundFullInclude,
         orderBy: { date: "desc" },
@@ -230,7 +250,19 @@ export async function getPublicPlayerStats(playerId: string): Promise<PublicPlay
   return buildPublicPlayerStats(user, user.rounds);
 }
 
-type StatsUser = Pick<User, "id" | "name" | "image">;
+type StatsUser = Pick<User, "id" | "name" | "image"> & {
+  tournamentParticipants?: {
+    id: string;
+    displayName: string;
+    nickname: string | null;
+    role: string;
+    image: string | null;
+    individualWins: number;
+    teamWins: number;
+    edition: { year: number; title: string };
+    teamMembers: { team: { name: string } }[];
+  }[];
+};
 
 function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPlayerStats {
   const year = new Date().getFullYear();
@@ -251,6 +283,18 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
       name: user.name,
       image: user.image ?? null,
     },
+    tournamentIdentities: (user.tournamentParticipants ?? []).map((participant) => ({
+      id: participant.id,
+      year: participant.edition.year,
+      title: participant.edition.title,
+      displayName: participant.displayName,
+      nickname: participant.nickname,
+      role: participant.role,
+      image: participant.image,
+      teamName: participant.teamMembers[0]?.team.name ?? null,
+      individualWins: participant.individualWins,
+      teamWins: participant.teamWins,
+    })),
     roundsAllTime: rounds.length,
     roundsThisYear,
     handicapIndex: index,
@@ -278,6 +322,19 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
     },
   };
 }
+
+const publicTournamentIdentitySelect = {
+  id: true,
+  displayName: true,
+  nickname: true,
+  role: true,
+  image: true,
+  individualWins: true,
+  teamWins: true,
+  displayOrder: true,
+  edition: { select: { year: true, title: true } },
+  teamMembers: { select: { team: { select: { name: true } } }, take: 1 },
+};
 
 function buildLeaderboardStats(rounds: RoundFull[]): PlayerLeaderboardStats {
   const scores = rounds.map((round) => round.totalStrokes);

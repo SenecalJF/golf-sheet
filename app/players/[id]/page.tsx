@@ -8,11 +8,11 @@ import {
   Flag,
   GitCompareArrows,
   Trophy,
-  Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PlayerPhoto } from "@/components/players/player-photo";
 import { RoundsHeatmap } from "@/components/players/rounds-heatmap";
 import { requireUser } from "@/lib/auth-utils";
 import { getPublicPlayerStats } from "@/lib/data";
@@ -29,6 +29,8 @@ export default async function PlayerProfilePage({
   const { id } = await params;
   const stats = await getPublicPlayerStats(id);
   if (!stats) notFound();
+  const profileImage =
+    stats.user.image ?? stats.tournamentIdentities.find((item) => item.image)?.image ?? null;
 
   return (
     <div className="space-y-8">
@@ -40,9 +42,11 @@ export default async function PlayerProfilePage({
         </Button>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary">
-              <Users className="h-6 w-6" />
-            </div>
+            <PlayerPhoto
+              src={profileImage}
+              alt={`${stats.user.name} profile photo`}
+              className="h-16 w-16 rounded-2xl"
+            />
             <div>
               <p className="text-sm uppercase tracking-[0.18em] text-primary">Player</p>
               <h1 className="mt-1 text-4xl font-semibold tracking-tight">
@@ -75,6 +79,45 @@ export default async function PlayerProfilePage({
         <FormatScoreCard label="18-hole scoring" stat={stats.scoreByFormat[18]} />
         <FormatScoreCard label="9-hole scoring" stat={stats.scoreByFormat[9]} />
       </div>
+
+      {stats.tournamentIdentities.some((identity) => identity.image) && (
+        <Card className="p-6">
+          <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+            <Trophy className="h-3.5 w-3.5" /> Tournament photos
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {stats.tournamentIdentities
+              .filter((identity) => identity.image)
+              .map((identity) => (
+                <div
+                  key={identity.id}
+                  className="overflow-hidden rounded-xl border border-border/60 bg-secondary/40"
+                >
+                  <div className="relative h-56 bg-secondary">
+                    <PlayerPhoto
+                      src={identity.image}
+                      alt={`${identity.displayName} ${identity.year} tournament photo`}
+                      className="h-full w-full rounded-none"
+                      sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      fill
+                    />
+                  </div>
+                  <div className="p-4">
+                    <div className="font-medium tracking-tight">{identity.displayName}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {identity.year} ·{" "}
+                      {identity.teamName ?? identity.nickname ?? identity.role.toLowerCase()}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Metric label="Solo wins" value={identity.individualWins} />
+                      <Metric label="Team wins" value={identity.teamWins} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </Card>
+      )}
 
       <RoundsHeatmap calendars={stats.roundCalendars} />
 

@@ -7,11 +7,11 @@ import {
   Search,
   TrendingUp,
   Trophy,
-  Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PlayerPhoto } from "@/components/players/player-photo";
 import { Input } from "@/components/ui/input";
 import { requireUser } from "@/lib/auth-utils";
 import {
@@ -103,12 +103,15 @@ export default async function PlayersPage({
           <Card className="border-primary/35 bg-primary/5 p-5 transition-colors hover:border-primary/55">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
+                <PlayerPhoto
+                  src={getPlayerImage(mostImproved.player)}
+                  alt={`${mostImproved.player.user.name} profile photo`}
+                  className="h-11 w-11 shrink-0 rounded-xl"
+                  iconClassName="h-5 w-5"
+                />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-                    Most improved player
+                    <TrendingUp className="h-3.5 w-3.5" /> Most improved player
                   </div>
                   <h2 className="mt-1 truncate text-xl font-semibold tracking-tight">
                     {mostImproved.player.user.name}
@@ -163,9 +166,12 @@ export default async function PlayersPage({
                 <Card className="h-full p-5 transition-colors group-hover:border-primary/40">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
-                        <Users className="h-5 w-5" />
-                      </div>
+                      <PlayerPhoto
+                        src={getPlayerImage(player)}
+                        alt={`${player.user.name} profile photo`}
+                        className="h-11 w-11 shrink-0 rounded-xl"
+                        iconClassName="h-5 w-5"
+                      />
                       <div className="min-w-0">
                         <h2 className="truncate text-base font-semibold tracking-tight group-hover:text-primary">
                           {player.user.name}
@@ -299,6 +305,10 @@ function selectedFormatStats(
     bestOverPar: null,
     avgOverPar: stats.avgVsPar,
   };
+}
+
+function getPlayerImage(player: PublicPlayerStats) {
+  return player.user.image ?? player.tournamentIdentities.find((item) => item.image)?.image ?? null;
 }
 
 function findMostImprovedPlayer(players: PublicPlayerStats[]):
