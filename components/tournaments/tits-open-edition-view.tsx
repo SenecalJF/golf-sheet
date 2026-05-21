@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import {
+  Activity,
+  ArrowUpRight,
   CalendarDays,
   Camera,
   Flag,
@@ -17,6 +19,7 @@ import { Card } from "@/components/ui/card";
 import {
   buildParticipantLeaderboard,
   buildTeamLeaderboard,
+  buildTournamentPlayerSignals,
   getEditionConfigText,
   getTournamentCourseGuides,
   type TournamentEditionFull,
@@ -100,6 +103,7 @@ function TitsOpen2026View({
 }) {
   const playerRows = buildParticipantLeaderboard(edition);
   const teamRows = buildTeamLeaderboard(edition);
+  const playerSignals = buildTournamentPlayerSignals(edition);
   const guides = getTournamentCourseGuides(edition);
   const quote = getEditionConfigText(edition, "quote");
   const honors = edition.series.honors.filter((honor) => !honor.year || honor.year <= edition.year);
@@ -131,6 +135,8 @@ function TitsOpen2026View({
           <LeaderboardCard title="Individual leaderboard" rows={playerRows} />
           <TeamLeaderboardCard rows={teamRows} />
         </section>
+
+        <PlayerLinksPanel signals={playerSignals} />
 
         <HonorsPanel honors={honors} />
 
@@ -395,30 +401,112 @@ function LeaderboardCard({
         <EmptyLine text="No tournament players yet." />
       ) : (
         <div className="space-y-2">
-          {rows.map((row) => (
-            <div
-              key={row.participantId}
-              className="grid grid-cols-[auto_1fr] gap-3 rounded-md border border-border bg-secondary p-3 sm:grid-cols-[auto_1fr_auto]"
-            >
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-[#123524] text-sm font-bold text-[#fffaf0]">
-                {row.rank ? `#${row.rank}` : "-"}
-              </div>
-              <div className="min-w-0">
-                <div className="truncate font-medium">{row.displayName}</div>
-                <div className="text-xs text-muted-foreground">
-                  {row.scoreCount} score{row.scoreCount === 1 ? "" : "s"}
-                  {row.nickname ? ` · ${row.nickname}` : ""}
+          {rows.map((row) => {
+            const content = (
+              <>
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-[#123524] text-sm font-bold text-[#fffaf0]">
+                  {row.rank ? `#${row.rank}` : "-"}
                 </div>
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-1 font-medium">
+                    <span className="truncate">{row.displayName}</span>
+                    {row.userId && <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {row.scoreCount} score{row.scoreCount === 1 ? "" : "s"}
+                    {row.nickname ? ` · ${row.nickname}` : ""}
+                    {row.userId ? " · Golf Sheet profile" : " · guest"}
+                  </div>
+                </div>
+                <div className="col-span-2 grid grid-cols-3 gap-2 sm:col-span-1 sm:w-56">
+                  <MiniMetric label="Gross" value={formatNumber(row.grossTotal)} />
+                  <MiniMetric label="Net" value={formatNumber(row.netTotal)} />
+                  <MiniMetric label="CH" value={row.courseHandicapTotal} />
+                </div>
+              </>
+            );
+            const className =
+              "grid grid-cols-[auto_1fr] gap-3 rounded-md border border-border bg-secondary p-3 transition sm:grid-cols-[auto_1fr_auto]";
+
+            return row.userId ? (
+              <Link
+                key={row.participantId}
+                href={`/players/${row.userId}`}
+                className={`${className} hover:border-primary/70 hover:bg-[#eef5da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+              >
+                {content}
+              </Link>
+            ) : (
+              <div key={row.participantId} className={className}>
+                {content}
               </div>
-              <div className="col-span-2 grid grid-cols-3 gap-2 sm:col-span-1 sm:w-56">
-                <MiniMetric label="Gross" value={formatNumber(row.grossTotal)} />
-                <MiniMetric label="Net" value={formatNumber(row.netTotal)} />
-                <MiniMetric label="CH" value={row.courseHandicapTotal} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+    </Card>
+  );
+}
+
+function PlayerLinksPanel({
+  signals,
+}: {
+  signals: ReturnType<typeof buildTournamentPlayerSignals>;
+}) {
+  if (signals.length === 0) return null;
+
+  return (
+    <Card className={`${tournamentCardClass} p-5`}>
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Golf Sheet link</p>
+          <h2 className="mt-1 font-serif text-3xl font-bold tracking-tight">Player form</h2>
+        </div>
+        <Activity className="h-5 w-5 text-primary" />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {signals.map((signal) => (
+          <Link
+            key={signal.participantId}
+            href={signal.profileHref}
+            className="group rounded-md border border-border bg-secondary p-4 transition hover:border-primary/70 hover:bg-[#eef5da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <div className="flex items-center gap-3">
+              {signal.image ? (
+                <Image
+                  src={signal.image}
+                  alt=""
+                  width={44}
+                  height={44}
+                  className="h-11 w-11 rounded-full object-cover"
+                />
+              ) : (
+                <div className="grid h-11 w-11 place-items-center rounded-full bg-[#123524] text-[#fffaf0]">
+                  <Users className="h-5 w-5" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-1 font-semibold">
+                  <span className="truncate">{signal.displayName}</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-primary transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {signal.teamName ?? signal.nickname ?? "Linked player"}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <MiniMetric label="Recent" value={formatSignedDecimal(signal.recentAvgVsPar)} />
+              <MiniMetric label="Best diff" value={formatSignedDecimal(signal.bestDifferential)} />
+              <MiniMetric label="Rounds" value={signal.linkedRoundCount} />
+            </div>
+            <div className="mt-3 text-xs text-muted-foreground">
+              HCP {formatDecimal(signal.handicapSnapshot)}
+              {signal.lastRoundDate ? ` · Last ${formatShortDate(signal.lastRoundDate)}` : ""}
+            </div>
+          </Link>
+        ))}
+      </div>
     </Card>
   );
 }
@@ -540,27 +628,7 @@ function TeamsPanel({
                 )}
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   {team.members.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center gap-2 rounded-md bg-card px-3 py-2 text-sm"
-                    >
-                      {member.participant.image && (
-                        <Image
-                          src={member.participant.image}
-                          alt=""
-                          width={28}
-                          height={28}
-                          className="h-7 w-7 rounded-full object-cover"
-                        />
-                      )}
-                      <span className="min-w-0 flex-1 truncate">
-                        {member.participant.displayName}
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        HCP {formatDecimal(member.participant.handicapSnapshot)} ·{" "}
-                        {member.participant.user?._count.rounds ?? 0} rounds
-                      </span>
-                    </div>
+                    <TeamMemberLink key={member.id} member={member} />
                   ))}
                 </div>
                 {team.description && (
@@ -572,6 +640,45 @@ function TeamsPanel({
         )}
       </div>
     </Card>
+  );
+}
+
+function TeamMemberLink({
+  member,
+}: {
+  member: TournamentEditionFull["teams"][number]["members"][number];
+}) {
+  const content = (
+    <>
+      {member.participant.image && (
+        <Image
+          src={member.participant.image}
+          alt=""
+          width={28}
+          height={28}
+          className="h-7 w-7 rounded-full object-cover"
+        />
+      )}
+      <span className="min-w-0 flex-1 truncate">{member.participant.displayName}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        HCP {formatDecimal(member.participant.handicapSnapshot)} ·{" "}
+        {member.participant.user?._count.rounds ?? 0} rounds
+      </span>
+      {member.participant.userId && <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-primary" />}
+    </>
+  );
+  const className =
+    "flex min-h-10 items-center gap-2 rounded-md bg-card px-3 py-2 text-sm transition";
+
+  return member.participant.userId ? (
+    <Link
+      href={`/players/${member.participant.userId}`}
+      className={`${className} hover:bg-[#eef5da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+    >
+      {content}
+    </Link>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }
 
@@ -634,11 +741,8 @@ function ParticipantsPanel({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {edition.participants.map((participant) => {
           const row = rowById.get(participant.id);
-          return (
-            <div
-              key={participant.id}
-              className="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
-            >
+          const content = (
+            <>
               {participant.image ? (
                 <div className="relative h-52">
                   <Image
@@ -666,6 +770,11 @@ function ParticipantsPanel({
                     {participant.role.toLowerCase()}
                   </Badge>
                 </div>
+                {participant.userId && (
+                  <div className="mt-2 flex items-center gap-1 text-xs font-semibold text-primary">
+                    View Golf Sheet stats <ArrowUpRight className="h-3.5 w-3.5" />
+                  </div>
+                )}
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <MiniMetric label="Net" value={formatNumber(row?.netTotal ?? null)} />
                   <MiniMetric label="Scores" value={row?.scoreCount ?? 0} />
@@ -680,6 +789,22 @@ function ParticipantsPanel({
                   </p>
                 )}
               </div>
+            </>
+          );
+          const className =
+            "group overflow-hidden rounded-lg border border-border bg-card shadow-sm transition";
+
+          return participant.userId ? (
+            <Link
+              key={participant.id}
+              href={`/players/${participant.userId}`}
+              className={`${className} hover:border-primary/70 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+            >
+              {content}
+            </Link>
+          ) : (
+            <div key={participant.id} className={className}>
+              {content}
             </div>
           );
         })}
@@ -837,4 +962,8 @@ function formatSignedDecimal(value: number | null | undefined) {
   if (value == null) return "-";
   const formatted = formatDecimal(value);
   return value > 0 ? `+${formatted}` : formatted;
+}
+
+function formatShortDate(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" }).format(date);
 }

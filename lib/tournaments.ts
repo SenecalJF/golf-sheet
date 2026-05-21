@@ -42,6 +42,20 @@ export type TournamentTeamLeaderboardRow = {
   rank: number | null;
 };
 
+export type TournamentPlayerSignal = {
+  participantId: string;
+  displayName: string;
+  nickname: string | null;
+  image: string | null;
+  profileHref: string;
+  teamName: string | null;
+  handicapSnapshot: number | null;
+  linkedRoundCount: number;
+  recentAvgVsPar: number | null;
+  bestDifferential: number | null;
+  lastRoundDate: Date | null;
+};
+
 export type TournamentCourseGuide = {
   courseName: string;
   image: string | null;
@@ -96,7 +110,27 @@ export const tournamentEditionInclude = {
   },
   participants: {
     include: {
-      user: { select: { id: true, name: true, email: true, image: true } },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          _count: { select: { rounds: true } },
+          rounds: {
+            select: {
+              id: true,
+              date: true,
+              holeCount: true,
+              totalStrokes: true,
+              totalPar: true,
+              scoreDiff: true,
+            },
+            orderBy: { date: "desc" as const },
+            take: 20,
+          },
+        },
+      },
       scores: {
         include: {
           editionCourse: { include: { course: true, tee: true } },
@@ -385,6 +419,44 @@ export function buildTeamLeaderboard(
   return rankRows(rows, (row) => [row.netTotal, row.grossTotal, -row.scoreCount]);
 }
 
+export function buildTournamentPlayerSignals(
+  edition: TournamentEditionFull,
+): TournamentPlayerSignal[] {
+  return edition.participants
+    .flatMap((participant) => {
+      const linkedUser = participant.user;
+      if (participant.role === "CADDIE" || !linkedUser) return [];
+
+      const appRounds = linkedUser.rounds;
+      const recentRounds = [...appRounds]
+        .sort((a, b) => b.date.getTime() - a.date.getTime())
+        .slice(0, 5);
+
+      return [
+        {
+          participantId: participant.id,
+          displayName: participant.displayName,
+          nickname: participant.nickname,
+          image: participant.image ?? linkedUser.image ?? null,
+          profileHref: `/players/${linkedUser.id}`,
+          teamName: participant.teamMembers[0]?.team.name ?? null,
+          handicapSnapshot: participant.handicapSnapshot,
+          linkedRoundCount: linkedUser._count.rounds,
+          recentAvgVsPar: averageOrNull(recentRounds.map(normalizeRoundVsPar)),
+          bestDifferential: minOrNull(appRounds.map((round) => round.scoreDiff)),
+          lastRoundDate: appRounds[0]?.date ?? null,
+        },
+      ];
+    })
+    .sort(
+      (a, b) =>
+        nullsLast(a.recentAvgVsPar, b.recentAvgVsPar) ||
+        nullsLast(a.bestDifferential, b.bestDifferential) ||
+        b.linkedRoundCount - a.linkedRoundCount ||
+        a.displayName.localeCompare(b.displayName),
+    );
+}
+
 export function getTournamentCourseGuides(
   edition: TournamentEditionFull,
 ): TournamentCourseGuide[] {
@@ -484,6 +556,13 @@ function normalizeRoundVsPar(round: {
 
 function roundOne(value: number) {
   return Math.round(value * 10) / 10;
+}
+
+function nullsLast(a: number | null, b: number | null) {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return a - b;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
