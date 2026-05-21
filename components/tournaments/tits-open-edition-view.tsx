@@ -51,6 +51,8 @@ const titsOpenThemeStyle = {
 
 const tournamentCardClass =
   "rounded-lg border border-border bg-card text-card-foreground shadow-sm ring-0";
+const tournamentPageShellClass =
+  "-mx-4 -my-6 overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:-my-10";
 
 export function TitsOpenEditionView({
   edition,
@@ -110,7 +112,7 @@ function TitsOpen2026View({
 
   return (
     <div
-      className="relative left-1/2 -mx-4 -my-6 w-screen -translate-x-1/2 overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:-my-10"
+      className={tournamentPageShellClass}
       style={titsOpenThemeStyle}
     >
       <EditionHero
@@ -220,7 +222,7 @@ function TitsOpenArchiveShell({
 }) {
   return (
     <div
-      className="relative left-1/2 -mx-4 -my-6 w-screen -translate-x-1/2 overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:-my-10"
+      className={tournamentPageShellClass}
       style={titsOpenThemeStyle}
     >
       <EditionHero
