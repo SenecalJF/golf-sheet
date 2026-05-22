@@ -7,6 +7,7 @@ import {
   Camera,
   ChevronRight,
   ImagePlus,
+  Loader2,
   PenLine,
   RotateCcw,
   Save,
@@ -186,6 +187,13 @@ export function NewRoundFlow({
     tournamentContext?.courses[0]?.id ?? "",
   );
   const filesRef = React.useRef<SelectedFile[]>([]);
+  const abortRef = React.useRef<AbortController | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const selectedCourse = courses.find((c) => c.id === courseId);
   const selectedTee = selectedCourse?.tees.find((t) => t.id === teeId);
@@ -326,19 +334,31 @@ export function NewRoundFlow({
     setFiles((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  function cancelExtract() {
+    abortRef.current?.abort();
+  }
+
   async function extractAi() {
     if (files.length === 0) {
       toast.error("Pick at least one photo first");
       return;
     }
+    const controller = new AbortController();
+    abortRef.current?.abort();
+    abortRef.current = controller;
     setExtracting(true);
     try {
       const resized = await Promise.all(files.map((item) => resizeImage(item.file)));
+      if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
       const form = new FormData();
       for (const f of resized) form.append("files", f);
       if (selectedTee) form.append("expectedPars", selectedTee.pars);
       form.append("preferredHoleCount", String(holeCount));
-      const res = await fetch("/api/extract-scorecard", { method: "POST", body: form });
+      const res = await fetch("/api/extract-scorecard", {
+        method: "POST",
+        body: form,
+        signal: controller.signal,
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(typeof err.error === "string" ? err.error : "Extraction failed");
@@ -426,8 +446,13 @@ export function NewRoundFlow({
           : "Extracted scorecard — please review",
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      if (e instanceof DOMException && e.name === "AbortError") {
+        toast.message("Extraction cancelled");
+      } else {
+        toast.error(e instanceof Error ? e.message : "Failed");
+      }
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setExtracting(false);
     }
   }
@@ -744,22 +769,29 @@ export function NewRoundFlow({
 
               <FilePicker files={files} onAdd={addFiles} onRemove={removeFile} />
 
-              <div className="flex flex-wrap items-center gap-2">
-                <Button onClick={extractAi} disabled={files.length === 0 || extracting}>
-                  <UploadCloud className="mr-1 h-4 w-4" />
-                  {extracting ? "Reading..." : "Read with AI"}
-                </Button>
-                {extractionModel && (
-                  <Badge variant="outline" className="border-primary/40 text-primary">
-                    Read by {extractionModel}
-                  </Badge>
-                )}
-                {extractionNotes && (
-                  <p className="basis-full text-xs text-muted-foreground">
-                    AI notes: {extractionNotes}
-                  </p>
-                )}
-              </div>
+              {extracting ? (
+                <ExtractionProgress
+                  photoCount={files.length}
+                  onCancel={cancelExtract}
+                />
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button onClick={extractAi} disabled={files.length === 0}>
+                    <UploadCloud className="mr-1 h-4 w-4" />
+                    Read with AI
+                  </Button>
+                  {extractionModel && (
+                    <Badge variant="outline" className="border-primary/40 text-primary">
+                      Read by {extractionModel}
+                    </Badge>
+                  )}
+                  {extractionNotes && (
+                    <p className="basis-full text-xs text-muted-foreground">
+                      AI notes: {extractionNotes}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {detectedTees.length > 0 && (
                 <DetectedTeesPicker
@@ -1422,6 +1454,66 @@ function buildBlankHoles(n: 9 | 18, previous?: GridHole[]): GridHole[] {
     strokes: previous?.[i]?.strokes ?? null,
     putts: previous?.[i]?.putts ?? null,
   }));
+}
+
+const PROGRESS_STAGES = [
+  { afterSec: 0, label: "Sending the photos to Claude…" },
+  { afterSec: 4, label: "Decoding the handwriting…" },
+  { afterSec: 10, label: "Reading every tee, par, and stroke…" },
+  { afterSec: 18, label: "Cross-checking the totals…" },
+  { afterSec: 28, label: "Almost there — finalising your scorecard…" },
+] as const;
+
+function ExtractionProgress({
+  photoCount,
+  onCancel,
+}: {
+  photoCount: number;
+  onCancel: () => void;
+}) {
+  const [elapsedSec, setElapsedSec] = React.useState(0);
+
+  React.useEffect(() => {
+    const start = Date.now();
+    const id = window.setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - start) / 1000));
+    }, 500);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const stage = [...PROGRESS_STAGES]
+    .reverse()
+    .find((s) => elapsedSec >= s.afterSec) ?? PROGRESS_STAGES[0];
+
+  return (
+    <div
+      aria-live="polite"
+      aria-busy="true"
+      className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:gap-4"
+    >
+      <div className="flex shrink-0 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+      <div className="flex-1">
+        <div className="text-sm font-semibold text-foreground">
+          Reading your scorecard
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            {photoCount} photo{photoCount === 1 ? "" : "s"} · {elapsedSec}s
+          </span>
+        </div>
+        <p className="mt-0.5 text-xs text-muted-foreground">{stage.label}</p>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onCancel}
+        className="shrink-0"
+      >
+        <X className="mr-1 h-4 w-4" /> Cancel
+      </Button>
+    </div>
+  );
 }
 
 function applyTeePars(

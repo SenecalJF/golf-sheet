@@ -28,6 +28,48 @@ export function HoleScoreGrid({
   readOnly?: boolean;
 }) {
   const [activeIdx, setActiveIdx] = React.useState(0);
+  const inputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+
+  React.useEffect(() => {
+    inputRefs.current = inputRefs.current.slice(0, holes.length);
+  }, [holes.length]);
+
+  const focusInput = (idx: number) => {
+    const target = inputRefs.current[idx];
+    if (target) {
+      target.focus();
+      target.select?.();
+    }
+  };
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    idx: number,
+  ) => {
+    const lastIdx = holes.length - 1;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (idx < lastIdx) focusInput(idx + 1);
+      else (e.currentTarget as HTMLInputElement).blur();
+      return;
+    }
+    if (e.key === "ArrowRight") {
+      const el = e.currentTarget as HTMLInputElement;
+      if (el.selectionStart != null && el.selectionStart === el.value.length) {
+        e.preventDefault();
+        if (idx < lastIdx) focusInput(idx + 1);
+      }
+      return;
+    }
+    if (e.key === "ArrowLeft") {
+      const el = e.currentTarget as HTMLInputElement;
+      if (el.selectionStart === 0 && el.selectionEnd === 0) {
+        e.preventDefault();
+        if (idx > 0) focusInput(idx - 1);
+      }
+      return;
+    }
+  };
 
   const update = (idx: number, patch: Partial<GridHole>) => {
     if (!onChange) return;
@@ -95,15 +137,23 @@ export function HoleScoreGrid({
             </div>
             <div className="text-[10px] text-muted-foreground">par {h.par}</div>
             <Input
+              ref={(el) => {
+                inputRefs.current[idx] = el;
+              }}
               type="number"
               inputMode="numeric"
+              enterKeyHint={idx === holes.length - 1 ? "done" : "next"}
               min={1}
               max={15}
               value={h.strokes ?? ""}
               aria-label={`Hole ${h.holeNumber} strokes`}
               placeholder={h.illegible ? "?" : ""}
               disabled={readOnly}
-              onFocus={() => setActiveIdx(idx)}
+              onFocus={(e) => {
+                setActiveIdx(idx);
+                e.currentTarget.select?.();
+              }}
+              onKeyDown={readOnly ? undefined : (e) => handleKeyDown(e, idx)}
               onChange={(e) => {
                 const v = e.target.value;
                 setActiveIdx(idx);
