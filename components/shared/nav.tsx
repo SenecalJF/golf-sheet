@@ -14,6 +14,7 @@ import {
   Menu,
   Users,
   Trophy,
+  Inbox,
 } from "lucide-react";
 import {
   Sheet,
@@ -24,24 +25,57 @@ import {
 } from "@/components/ui/sheet";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
-const ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/rounds", label: "Rounds", icon: ListChecks },
-  { href: "/rounds/new", label: "New round", icon: Camera, accent: true },
-  { href: "/courses", label: "Courses", icon: Flag },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/players", label: "Players", icon: Users },
-  { href: "/tits-open", label: "Tits Open", icon: Trophy },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  accent?: boolean;
+  badge?: number;
+  match?: (pathname: string) => boolean;
+};
 
-function NavLinks({ onSelect }: { onSelect?: () => void }) {
+function buildItems(pendingInboxCount: number): NavItem[] {
+  return [
+    { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    {
+      href: "/rounds",
+      label: "Rounds",
+      icon: ListChecks,
+      // Don't light up "Rounds" when we're inside the dedicated Inbox route.
+      match: (p) => p === "/rounds" || (p.startsWith("/rounds/") && !p.startsWith("/rounds/pending")),
+    },
+    {
+      href: "/rounds/pending",
+      label: "Inbox",
+      icon: Inbox,
+      badge: pendingInboxCount,
+      match: (p) => p.startsWith("/rounds/pending"),
+    },
+    { href: "/rounds/new", label: "New round", icon: Camera, accent: true },
+    { href: "/courses", label: "Courses", icon: Flag },
+    { href: "/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/players", label: "Players", icon: Users },
+    { href: "/tits-open", label: "Tits Open", icon: Trophy },
+    { href: "/settings", label: "Settings", icon: Settings },
+  ];
+}
+
+function NavLinks({
+  items,
+  onSelect,
+}: {
+  items: NavItem[];
+  onSelect?: () => void;
+}) {
   const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-1">
-      {ITEMS.map((it) => {
-        const active =
-          it.href === "/" ? pathname === "/" : pathname.startsWith(it.href);
+      {items.map((it) => {
+        const active = it.match
+          ? it.match(pathname)
+          : it.href === "/"
+            ? pathname === "/"
+            : pathname.startsWith(it.href);
         const Icon = it.icon;
         return (
           <Link
@@ -57,7 +91,15 @@ function NavLinks({ onSelect }: { onSelect?: () => void }) {
             )}
           >
             <Icon className={cn("h-4 w-4", active ? "text-primary" : "")} />
-            <span>{it.label}</span>
+            <span className="flex-1">{it.label}</span>
+            {it.badge != null && it.badge > 0 && (
+              <span
+                aria-label={`${it.badge} pending`}
+                className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground shadow-sm"
+              >
+                {it.badge > 99 ? "99+" : it.badge}
+              </span>
+            )}
           </Link>
         );
       })}
@@ -81,9 +123,14 @@ function Brand({ subtitle = true }: { subtitle?: boolean }) {
   );
 }
 
-export function DesktopNav() {
+export function DesktopNav({
+  pendingInboxCount = 0,
+}: {
+  pendingInboxCount?: number;
+}) {
   const pathname = usePathname();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const items = buildItems(pendingInboxCount);
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border/60 bg-sidebar/60 backdrop-blur-xl lg:block">
@@ -93,7 +140,7 @@ export function DesktopNav() {
         </div>
         {!isAuthPage && (
           <>
-            <NavLinks />
+            <NavLinks items={items} />
             <div className="mt-auto space-y-3">
               <div className="rounded-xl border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground">
                 <div className="mb-1 font-semibold text-foreground">Across Quebec</div>
@@ -113,10 +160,16 @@ export function DesktopNav() {
   );
 }
 
-export function MobileTopBar() {
+export function MobileTopBar({
+  pendingInboxCount = 0,
+}: {
+  pendingInboxCount?: number;
+}) {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const items = buildItems(pendingInboxCount);
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl lg:hidden">
       <Brand subtitle={false} />
@@ -127,9 +180,17 @@ export function MobileTopBar() {
               <button
                 type="button"
                 aria-label="Open menu"
-                className="grid h-9 w-9 place-items-center rounded-lg border border-border/60 bg-secondary/60 text-foreground"
+                className="relative grid h-9 w-9 place-items-center rounded-lg border border-border/60 bg-secondary/60 text-foreground"
               >
                 <Menu className="h-5 w-5" />
+                {pendingInboxCount > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground shadow"
+                  >
+                    {pendingInboxCount > 99 ? "99+" : pendingInboxCount}
+                  </span>
+                )}
               </button>
             }
           />
@@ -140,7 +201,7 @@ export function MobileTopBar() {
               </SheetTitle>
             </SheetHeader>
             <div className="space-y-4 p-4">
-              <NavLinks onSelect={() => setOpen(false)} />
+              <NavLinks items={items} onSelect={() => setOpen(false)} />
               <SignOutButton />
             </div>
           </SheetContent>

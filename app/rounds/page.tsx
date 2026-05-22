@@ -4,20 +4,40 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Calendar, CheckCircle2, Clock, MapPin, Send, XCircle } from "lucide-react";
 import { format } from "date-fns";
+import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth-utils";
-import { getPendingRoundSummariesForUser, getRoundsForUser } from "@/lib/data";
+import {
+  getPendingRoundSummariesForUser,
+  getRoundsPageForUser,
+} from "@/lib/data";
 import type { PendingRoundSummary } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
-export default async function RoundsPage() {
+const PAGE_SIZE = 50;
+const PENDING_PREVIEW = 3;
+const SENT_PREVIEW = 5;
+
+export default async function RoundsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cursor?: string }>;
+}) {
   const user = await requireUser();
-  const [rounds, pendingRounds] = await Promise.all([
-    getRoundsForUser(user.id),
-    getPendingRoundSummariesForUser(user.id),
+  const { cursor } = await searchParams;
+  const isFirstPage = !cursor;
+
+  const [{ rounds, nextCursor }, pendingRounds, totalRounds] = await Promise.all([
+    getRoundsPageForUser(user.id, { take: PAGE_SIZE, cursor: cursor ?? null }),
+    isFirstPage ? getPendingRoundSummariesForUser(user.id) : Promise.resolve(null),
+    isFirstPage
+      ? prisma.round.count({ where: { userId: user.id } })
+      : Promise.resolve(null),
   ]);
-  const receivedPending = pendingRounds.received.filter((round) => round.status === "PENDING");
-  const sentPending = pendingRounds.sent.slice(0, 5);
+
+  const receivedPending =
+    pendingRounds?.received.filter((r) => r.status === "PENDING") ?? [];
+  const sentPending = pendingRounds?.sent.slice(0, SENT_PREVIEW) ?? [];
 
   return (
     <div className="space-y-8">
@@ -25,7 +45,9 @@ export default async function RoundsPage() {
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Rounds</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">
-            {rounds.length} round{rounds.length === 1 ? "" : "s"} logged
+            {isFirstPage
+              ? `${totalRounds ?? 0} round${(totalRounds ?? 0) === 1 ? "" : "s"} logged`
+              : "Older rounds"}
           </h1>
         </div>
         <Button asChild>
@@ -35,13 +57,17 @@ export default async function RoundsPage() {
         </Button>
       </div>
 
-      {receivedPending.length > 0 && <PendingInbox rounds={receivedPending} />}
-      {sentPending.length > 0 && <SentPendingRounds rounds={sentPending} />}
+      {isFirstPage && receivedPending.length > 0 && (
+        <PendingInboxPreview rounds={receivedPending} totalPending={receivedPending.length} />
+      )}
+      {isFirstPage && sentPending.length > 0 && <SentPendingRounds rounds={sentPending} />}
 
       {rounds.length === 0 ? (
         <Card className="grid place-items-center p-12 text-center">
           <p className="max-w-md text-sm text-muted-foreground">
-            No rounds yet. Add your first one to start tracking your handicap.
+            {isFirstPage
+              ? "No rounds yet. Add your first one to start tracking your handicap."
+              : "No more rounds to show."}
           </p>
         </Card>
       ) : (
@@ -81,16 +107,7 @@ export default async function RoundsPage() {
                         <div className="number-mono text-2xl font-semibold">
                           {r.totalStrokes}
                         </div>
-                        <div
-                          className={
-                            "text-xs " +
-                            (over <= 0
-                              ? "text-primary"
-                              : over < 5
-                                ? "text-amber-400"
-                                : "text-destructive")
-                          }
-                        >
+                        <div className={scoreTone(over)}>
                           {over >= 0 ? "+" : ""}
                           {over} vs par
                         </div>
@@ -106,11 +123,34 @@ export default async function RoundsPage() {
           </ul>
         </Card>
       )}
+
+      <div className="flex items-center justify-between text-sm">
+        {!isFirstPage ? (
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/rounds">← Back to latest</Link>
+          </Button>
+        ) : (
+          <span />
+        )}
+        {nextCursor && (
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/rounds?cursor=${encodeURIComponent(nextCursor)}`}>Load older</Link>
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
 
-function PendingInbox({ rounds }: { rounds: PendingRoundSummary[] }) {
+function PendingInboxPreview({
+  rounds,
+  totalPending,
+}: {
+  rounds: PendingRoundSummary[];
+  totalPending: number;
+}) {
+  const visible = rounds.slice(0, PENDING_PREVIEW);
+  const overflow = totalPending - visible.length;
   return (
     <Card className="overflow-hidden border-amber-500/30 bg-amber-500/5 p-0">
       <div className="flex flex-col gap-2 border-b border-border/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -118,12 +158,17 @@ function PendingInbox({ rounds }: { rounds: PendingRoundSummary[] }) {
           <Clock className="h-4 w-4 text-amber-400" />
           Pending rounds for you
         </div>
-        <Badge variant="outline" className="w-fit border-amber-500/40 text-amber-400">
-          {rounds.length} waiting
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+            {totalPending} waiting
+          </Badge>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/rounds/pending">Open inbox</Link>
+          </Button>
+        </div>
       </div>
       <ul className="divide-y divide-border/60">
-        {rounds.map((round) => {
+        {visible.map((round) => {
           const over = round.totalStrokes - round.totalPar;
           return (
             <li key={round.id}>
@@ -166,6 +211,16 @@ function PendingInbox({ rounds }: { rounds: PendingRoundSummary[] }) {
           );
         })}
       </ul>
+      {overflow > 0 && (
+        <div className="border-t border-border/60 px-4 py-2 text-center">
+          <Link
+            href="/rounds/pending"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            +{overflow} more in inbox
+          </Link>
+        </div>
+      )}
     </Card>
   );
 }

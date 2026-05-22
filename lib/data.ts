@@ -131,6 +131,72 @@ export async function getRoundsForUser(userId: string): Promise<RoundFull[]> {
   });
 }
 
+export type RoundsPage = {
+  rounds: RoundFull[];
+  nextCursor: string | null;
+};
+
+/**
+ * Cursor-paginated rounds for a user, newest first.
+ * Caller passes `cursor` = the id of the last visible round to get the next page.
+ */
+export async function getRoundsPageForUser(
+  userId: string,
+  opts: { take?: number; cursor?: string | null } = {},
+): Promise<RoundsPage> {
+  const take = opts.take ?? 50;
+  const fetched = await prisma.round.findMany({
+    where: { userId },
+    include: roundFullInclude,
+    orderBy: [{ date: "desc" }, { id: "desc" }],
+    take: take + 1,
+    skip: opts.cursor ? 1 : 0,
+    cursor: opts.cursor ? { id: opts.cursor } : undefined,
+  });
+  const hasMore = fetched.length > take;
+  const rounds = hasMore ? fetched.slice(0, take) : fetched;
+  const nextCursor = hasMore ? rounds[rounds.length - 1]?.id ?? null : null;
+  return { rounds, nextCursor };
+}
+
+export async function getPendingInboxCount(userId: string): Promise<number> {
+  return prisma.pendingRound.count({
+    where: { recipientUserId: userId, status: "PENDING" },
+  });
+}
+
+export type PendingInboxPage = {
+  rounds: PendingRoundSummary[];
+  nextCursor: string | null;
+};
+
+/**
+ * Cursor-paginated received pending-rounds inbox, newest first.
+ * Includes ACCEPTED / REJECTED entries; the dedicated inbox page can choose to
+ * filter to PENDING for the badge count.
+ */
+export async function getReceivedPendingRoundsPageForUser(
+  userId: string,
+  opts: { take?: number; cursor?: string | null; statuses?: ("PENDING" | "ACCEPTED" | "REJECTED")[] } = {},
+): Promise<PendingInboxPage> {
+  const take = opts.take ?? 50;
+  const fetched = await prisma.pendingRound.findMany({
+    where: {
+      recipientUserId: userId,
+      ...(opts.statuses ? { status: { in: opts.statuses } } : {}),
+    },
+    include: pendingRoundSummaryInclude,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: take + 1,
+    skip: opts.cursor ? 1 : 0,
+    cursor: opts.cursor ? { id: opts.cursor } : undefined,
+  });
+  const hasMore = fetched.length > take;
+  const rounds = hasMore ? fetched.slice(0, take) : fetched;
+  const nextCursor = hasMore ? rounds[rounds.length - 1]?.id ?? null : null;
+  return { rounds, nextCursor };
+}
+
 export async function getPendingRoundSummariesForUser(userId: string): Promise<{
   received: PendingRoundSummary[];
   sent: PendingRoundSummary[];

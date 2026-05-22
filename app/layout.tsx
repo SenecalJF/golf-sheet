@@ -4,6 +4,8 @@ import "./globals.css";
 import { DesktopNav, MobileTopBar } from "@/components/shared/nav";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getCurrentUser } from "@/lib/auth-utils";
+import { getPendingInboxCount } from "@/lib/data";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,11 +46,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await getCurrentUser();
+  const pendingInboxCount = user
+    ? await getPendingInboxCount(user.id).catch(() => 0)
+    : 0;
+
   return (
     <html
       lang="en"
@@ -58,9 +65,9 @@ export default function RootLayout({
       <body className="min-h-full">
         <TooltipProvider delay={200}>
           <div className="flex min-h-screen flex-col lg:flex-row">
-            <DesktopNav />
+            <DesktopNav pendingInboxCount={pendingInboxCount} />
             <div className="flex min-h-screen flex-1 flex-col">
-              <MobileTopBar />
+              <MobileTopBar pendingInboxCount={pendingInboxCount} />
               <main className="flex-1 overflow-x-hidden">
                 <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
                   {children}
