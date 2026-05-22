@@ -153,7 +153,15 @@ function TeeForm({
         const err = await res.json();
         throw new Error(typeof err.error === "string" ? err.error : "Validation failed");
       }
-      toast.success("Tee saved");
+      const result = (await res.json().catch(() => null)) as
+        | { scoreDiffsRecomputed?: number }
+        | null;
+      const recomputed = result?.scoreDiffsRecomputed ?? 0;
+      toast.success(
+        recomputed > 0
+          ? `Tee saved · ${recomputed} round${recomputed === 1 ? "" : "s"} recomputed`
+          : "Tee saved",
+      );
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
