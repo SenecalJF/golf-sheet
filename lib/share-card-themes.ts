@@ -61,8 +61,10 @@ export const THEMES: Record<ShareCardTheme, ThemeMeta> = {
     id: "twilight",
     label: "Twilight pin",
     colors: {
+      // Satori has flaky support for the modern `radial-gradient(size at position, …)`
+      // syntax — use a linear-gradient that still reads as a twilight sky.
       background:
-        "radial-gradient(120% 80% at 50% 30%, #14483b 0%, #0c2f29 55%, #072018 100%)",
+        "linear-gradient(180deg, #14483b 0%, #0c2f29 55%, #072018 100%)",
       text: "#e8fff4",
       textMuted: "rgba(232, 255, 244, 0.66)",
       scoreText: "#a5e8c9",
