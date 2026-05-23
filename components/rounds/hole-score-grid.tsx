@@ -168,7 +168,7 @@ export function HoleScoreGrid({
       </div>
       <div
         aria-label="Scrollable hole scores"
-        className="overflow-x-auto px-1 pb-2 [scrollbar-width:thin] sm:overflow-visible sm:px-0 sm:pb-0"
+        className="overflow-x-auto pb-2 pl-1 pr-12 [scrollbar-width:thin] sm:overflow-visible sm:px-0 sm:pb-0"
       >
         <div className="min-w-[420px]">{node}</div>
       </div>
