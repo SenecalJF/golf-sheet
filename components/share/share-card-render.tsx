@@ -2,7 +2,7 @@ import "server-only";
 import * as React from "react";
 
 import type { ShareCardStats } from "@/lib/share-card-stats";
-import { THEMES, type ShareCardTheme } from "@/lib/share-card-themes";
+import { THEMES, type ShareCardTheme, type ThemeColors } from "@/lib/share-card-themes";
 
 const FONT_STACK =
   '"Inter", "SF Pro Text", "Helvetica Neue", "Arial", sans-serif';
@@ -67,6 +67,7 @@ export function renderShareCard({
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div
           style={{
+            display: "flex",
             fontSize: heroTitleSize,
             fontWeight: 800,
             letterSpacing: "-0.02em",
@@ -121,6 +122,7 @@ export function renderShareCard({
         >
           <div
             style={{
+              display: "flex",
               fontSize: 24,
               letterSpacing: "0.24em",
               textTransform: "uppercase",
@@ -132,6 +134,7 @@ export function renderShareCard({
           </div>
           <div
             style={{
+              display: "flex",
               fontSize: scoreSize,
               fontWeight: 900,
               lineHeight: 0.9,
@@ -145,6 +148,7 @@ export function renderShareCard({
           </div>
           <div
             style={{
+              display: "flex",
               marginTop: 18,
               fontSize: 30,
               color: colors.textMuted,
@@ -228,7 +232,7 @@ export function renderShareCard({
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 12 }}>
           <span
             style={{
-              display: "inline-flex",
+              display: "flex",
               width: 12,
               height: 12,
               borderRadius: 999,
@@ -254,7 +258,7 @@ function StatStrip({
   isStory,
 }: {
   stats: ShareCardStats;
-  colors: ReturnType<typeof getColors>;
+  colors: ThemeColors;
   isStory: boolean;
 }) {
   const blocks: { label: string; value: string }[] = [];
@@ -313,6 +317,7 @@ function StatStrip({
         >
           <div
             style={{
+              display: "flex",
               fontSize: 64,
               fontWeight: 800,
               color: colors.text,
@@ -324,6 +329,7 @@ function StatStrip({
           </div>
           <div
             style={{
+              display: "flex",
               marginTop: 8,
               fontSize: 22,
               letterSpacing: "0.18em",
@@ -344,7 +350,7 @@ function ParTypeRow({
   colors,
 }: {
   stats: ShareCardStats;
-  colors: ReturnType<typeof getColors>;
+  colors: ThemeColors;
 }) {
   const items: { label: string; avg: number | null }[] = [
     { label: "Par 3", avg: stats.parTypeAverages.par3 },
@@ -400,7 +406,7 @@ function ThemeDecorations({
   dims,
 }: {
   theme: ShareCardTheme;
-  colors: ReturnType<typeof getColors>;
+  colors: ThemeColors;
   dims: { width: number; height: number };
 }) {
   // Satori does not reliably support SVG <pattern>, <mask>, or <filter> elements,
@@ -555,13 +561,9 @@ function pickOverParTone(
 }
 
 type ThemeColorsLike = Pick<
-  ReturnType<typeof getColors>,
+  ThemeColors,
   "good" | "warn" | "bad" | "card" | "cardBorder" | "text" | "textMuted" | "accent"
 >;
-
-function getColors(theme: ShareCardTheme) {
-  return THEMES[theme].colors;
-}
 
 function formatSigned(value: number): string {
   if (value > 0) return `+${value}`;
