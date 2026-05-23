@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HoleScoreGrid } from "@/components/rounds/hole-score-grid";
 import { RoundDeleteButton } from "@/components/rounds/round-delete-button";
+import { RoundShareButton } from "@/components/rounds/round-share-button";
 import { format } from "date-fns";
 import { requireUser } from "@/lib/auth-utils";
 import { getRoundForViewer } from "@/lib/data";
@@ -65,12 +66,20 @@ export default async function RoundDetail({
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3 text-right">
             {isOwner && (
-              <Button asChild variant="outline">
-                <Link href={`/rounds/${r.id}/edit`}>
-                  <Pencil className="mr-1 h-4 w-4" />
-                  Edit
-                </Link>
-              </Button>
+              <>
+                <RoundShareButton
+                  roundId={r.id}
+                  courseName={r.course.name}
+                  totalStrokes={r.totalStrokes}
+                  overPar={r.totalStrokes - r.totalPar}
+                />
+                <Button asChild variant="outline">
+                  <Link href={`/rounds/${r.id}/edit`}>
+                    <Pencil className="mr-1 h-4 w-4" />
+                    Edit
+                  </Link>
+                </Button>
+              </>
             )}
             <div>
               <div className="number-mono text-4xl font-semibold">{r.totalStrokes}</div>
