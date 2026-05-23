@@ -3,6 +3,7 @@ import { ImageResponse } from "next/og";
 
 import { prisma } from "@/lib/db";
 import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
+import { getShareCardBackgroundDataUrl } from "@/lib/share-card-backgrounds";
 import { buildShareCardStats } from "@/lib/share-card-stats";
 import {
   isShareCardTheme,
@@ -24,6 +25,7 @@ type StepName =
   | "params"
   | "prisma"
   | "buildStats"
+  | "background"
   | "renderJsx"
   | "imageResponse";
 
@@ -80,11 +82,23 @@ export async function GET(
       );
     }
 
-    // Step 5 — build the JSX tree.
-    lastStep = "renderJsx";
-    const element = renderShareCard({ stats, theme, size });
+    // Step 5 — load the pre-cropped local photo background.
+    lastStep = "background";
+    const backgroundImageDataUrl = await getShareCardBackgroundDataUrl(
+      theme,
+      size,
+    );
 
-    // Step 6 — hand to ImageResponse. Errors that throw inside Satori during
+    // Step 6 — build the JSX tree.
+    lastStep = "renderJsx";
+    const element = renderShareCard({
+      stats,
+      theme,
+      size,
+      backgroundImageDataUrl,
+    });
+
+    // Step 7 — hand to ImageResponse. Errors that throw inside Satori during
     // body streaming bypass this try/catch, so we ALSO buffer here.
     lastStep = "imageResponse";
     return new ImageResponse(element, {

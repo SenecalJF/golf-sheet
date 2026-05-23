@@ -25,10 +25,12 @@ export function renderShareCard({
   stats,
   theme,
   size,
+  backgroundImageDataUrl,
 }: {
   stats: ShareCardStats;
   theme: ShareCardTheme;
   size: ShareCardSize;
+  backgroundImageDataUrl?: string;
 }): React.ReactElement {
   const meta = THEMES[theme];
   const dims = SHARE_CARD_DIMENSIONS[size];
@@ -42,7 +44,7 @@ export function renderShareCard({
     ? clampFontSize(stats.courseName, [76, 64, 56])
     : clampFontSize(stats.courseName, [64, 56, 48]);
 
-  const scoreSize = isStory ? 320 : 260;
+  const scoreSize = isStory ? 320 : 240;
 
   return (
     <div
@@ -60,8 +62,11 @@ export function renderShareCard({
         overflow: "hidden",
       }}
     >
-      {/* Theme-specific decorations behind everything. */}
-      <ThemeDecorations theme={theme} colors={colors} dims={dims} />
+      {backgroundImageDataUrl ? (
+        <PhotoBackground src={backgroundImageDataUrl} colors={colors} dims={dims} />
+      ) : (
+        <ThemeDecorations theme={theme} colors={colors} dims={dims} />
+      )}
 
       {/* Hero: course + city + date. */}
       <div style={{ display: "flex", flexDirection: "column" }}>
@@ -73,6 +78,7 @@ export function renderShareCard({
             letterSpacing: "-0.02em",
             lineHeight: 1.05,
             maxWidth: dims.width - 200,
+            textShadow: `0 6px 24px ${colors.scoreShadow}`,
           }}
         >
           {stats.courseName}
@@ -86,6 +92,7 @@ export function renderShareCard({
             gap: 16,
             fontSize: 32,
             color: colors.textMuted,
+            textShadow: `0 4px 18px ${colors.scoreShadow}`,
           }}
         >
           <span>{`${stats.city} · ${stats.dateLabel} · ${stats.holeCount} holes${stats.nineLabel ? ` · ${stats.nineLabel}` : ""}`}</span>
@@ -110,7 +117,7 @@ export function renderShareCard({
           alignItems: "center",
           justifyContent: "center",
           gap: 56,
-          marginTop: isStory ? 96 : 56,
+          marginTop: isStory ? 96 : 42,
         }}
       >
         <div
@@ -182,40 +189,17 @@ export function renderShareCard({
                 textTransform: "uppercase",
                 opacity: 0.85,
               }}
-            >
-              vs par
-            </span>
-          </Pill>
-          {stats.scoreDiff != null && (
-            <Pill
-              background={colors.card}
-              color={colors.text}
-              border={colors.cardBorder}
-              size="md"
-            >
-              <span style={{ fontWeight: 800, fontSize: 40 }}>
-                {stats.scoreDiff.toFixed(1)}
-              </span>
-              <span
-                style={{
-                  fontSize: 22,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  opacity: 0.78,
-                }}
-              >
-                differential
-              </span>
-            </Pill>
-          )}
+          >
+            vs par
+          </span>
+        </Pill>
         </div>
       </div>
 
-      {/* Stat strip — front/back/diff or 9-hole equivalent. */}
+      {/* Stat strip — front/back or 9-hole equivalent. */}
       <StatStrip stats={stats} colors={colors} isStory={isStory} />
 
-      {/* Par-type row. */}
-      <ParTypeRow stats={stats} colors={colors} />
+      <ScoreBreakdownRow stats={stats} colors={colors} isStory={isStory} />
 
       {/* Footer: owner + brand. */}
       <div
@@ -266,34 +250,18 @@ function StatStrip({
   if (stats.holeCount === 18) {
     blocks.push({ label: "Front 9", value: String(stats.frontTotal ?? "—") });
     blocks.push({ label: "Back 9", value: String(stats.backTotal ?? "—") });
-    if (stats.scoreDiff != null) {
-      blocks.push({ label: "Differential", value: stats.scoreDiff.toFixed(1) });
-    } else if (stats.bestHoleOverPar != null) {
-      blocks.push({
-        label: "Best hole",
-        value: formatSigned(stats.bestHoleOverPar),
-      });
-    }
   } else {
     blocks.push({
       label: "Holes",
       value: stats.nineLabel ?? `${stats.holeCount}H`,
     });
     blocks.push({ label: "Net vs par", value: formatSigned(stats.overPar) });
-    if (stats.scoreDiff != null) {
-      blocks.push({ label: "Differential", value: stats.scoreDiff.toFixed(1) });
-    } else if (stats.bestHoleOverPar != null) {
-      blocks.push({
-        label: "Best hole",
-        value: formatSigned(stats.bestHoleOverPar),
-      });
-    }
   }
 
   return (
     <div
       style={{
-        marginTop: isStory ? 88 : 56,
+        marginTop: isStory ? 88 : 44,
         display: "flex",
         flexDirection: "row",
         justifyContent: "space-between",
@@ -309,7 +277,7 @@ function StatStrip({
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            padding: "28px 12px",
+            padding: isStory ? "28px 12px" : "24px 10px",
             background: colors.card,
             border: `2px solid ${colors.cardBorder}`,
             borderRadius: 28,
@@ -345,59 +313,168 @@ function StatStrip({
   );
 }
 
-function ParTypeRow({
+function ScoreBreakdownRow({
   stats,
   colors,
+  isStory,
 }: {
   stats: ShareCardStats;
   colors: ThemeColors;
+  isStory: boolean;
 }) {
-  const items: { label: string; avg: number | null }[] = [
-    { label: "Par 3", avg: stats.parTypeAverages.par3 },
-    { label: "Par 4", avg: stats.parTypeAverages.par4 },
-    { label: "Par 5", avg: stats.parTypeAverages.par5 },
-  ];
+  const items = buildScoreBreakdownItems(stats);
+  const compact = items.length > 4;
 
   return (
     <div
       style={{
-        marginTop: 48,
+        marginTop: isStory ? 48 : 34,
         display: "flex",
         flexDirection: "row",
         justifyContent: "space-between",
-        gap: 16,
+        gap: compact ? 12 : 16,
+        marginBottom: isStory ? 48 : 28,
       }}
     >
       {items.map((item) => {
-        const tone = item.avg == null ? null : pickOverParTone(item.avg, colors);
+        const tone = pickScoreBreakdownTone(item.tone, colors);
         return (
           <div
             key={item.label}
             style={{
               flex: 1,
               display: "flex",
-              flexDirection: "row",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: 14,
-              padding: "20px 16px",
-              borderRadius: 999,
-              background: tone?.background ?? colors.card,
-              border: `2px solid ${tone?.border ?? colors.cardBorder}`,
-              color: tone?.text ?? colors.text,
-              fontSize: 32,
-              fontWeight: 700,
+              padding: compact ? "16px 8px" : "18px 12px",
+              borderRadius: 28,
+              background: tone.background,
+              border: `2px solid ${tone.border}`,
+              color: tone.text,
             }}
           >
-            <span style={{ opacity: 0.85 }}>{item.label}</span>
-            <span style={{ fontVariantNumeric: "tabular-nums" }}>
-              {item.avg == null ? "—" : formatSignedDecimal(item.avg)}
-            </span>
+            <div
+              style={{
+                display: "flex",
+                fontSize: compact ? 40 : 46,
+                fontWeight: 800,
+                lineHeight: 1,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {item.value}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                marginTop: 7,
+                fontSize: compact ? 16 : 18,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                opacity: 0.88,
+              }}
+            >
+              {item.label}
+            </div>
           </div>
         );
       })}
     </div>
   );
+}
+
+type ScoreBreakdownItem = {
+  label: string;
+  value: number;
+  tone: "great" | "good" | "warn" | "bad";
+};
+
+function buildScoreBreakdownItems(stats: ShareCardStats): ScoreBreakdownItem[] {
+  const breakdown = stats.scoreBreakdown;
+  const doublesOrWorse = breakdown.doubles + breakdown.triplesOrWorse;
+  const items: ScoreBreakdownItem[] = [];
+
+  if (breakdown.eaglesOrBetter > 0) {
+    items.push({
+      label: "Eagle+",
+      value: breakdown.eaglesOrBetter,
+      tone: "great",
+    });
+  }
+
+  if (breakdown.birdies > 0) {
+    items.push({
+      label: pluralize(breakdown.birdies, "Birdie", "Birdies"),
+      value: breakdown.birdies,
+      tone: "great",
+    });
+  }
+
+  items.push({
+    label: pluralize(breakdown.pars, "Par", "Pars"),
+    value: breakdown.pars,
+    tone: "good",
+  });
+
+  items.push({
+    label: pluralize(breakdown.bogeys, "Bogey", "Bogeys"),
+    value: breakdown.bogeys,
+    tone: "warn",
+  });
+
+  if (breakdown.birdies === 0) {
+    items.push({
+      label: pluralize(breakdown.doubles, "Double", "Doubles"),
+      value: breakdown.doubles,
+      tone: "bad",
+    });
+    items.push({
+      label: "Triples+",
+      value: breakdown.triplesOrWorse,
+      tone: "bad",
+    });
+  } else {
+    items.push({
+      label: "Doubles+",
+      value: doublesOrWorse,
+      tone: "bad",
+    });
+  }
+
+  return items;
+}
+
+function pickScoreBreakdownTone(
+  tone: ScoreBreakdownItem["tone"],
+  colors: ThemeColors,
+) {
+  switch (tone) {
+    case "great":
+      return {
+        background: `${colors.good}24`,
+        text: colors.good,
+        border: `${colors.good}78`,
+      };
+    case "good":
+      return {
+        background: colors.card,
+        text: colors.text,
+        border: colors.cardBorder,
+      };
+    case "warn":
+      return {
+        background: `${colors.warn}22`,
+        text: colors.warn,
+        border: `${colors.warn}66`,
+      };
+    case "bad":
+      return {
+        background: `${colors.bad}1f`,
+        text: colors.bad,
+        border: `${colors.bad}5c`,
+      };
+  }
 }
 
 function ThemeDecorations({
@@ -413,14 +490,16 @@ function ThemeDecorations({
   // and it can choke on the `inset: 0` shorthand. So every decoration here is a
   // single absolutely-positioned div wrapping a single primitive SVG with
   // explicit position offsets.
+  const isStory = dims.height > dims.width;
+
   if (theme === "sunrise") {
     return (
       <div
         style={{
           position: "absolute",
-          right: -40,
-          bottom: -80,
-          opacity: 0.55,
+          right: isStory ? -40 : -260,
+          bottom: isStory ? -80 : -360,
+          opacity: isStory ? 0.55 : 0.3,
           display: "flex",
         }}
       >
@@ -464,9 +543,9 @@ function ThemeDecorations({
           ))}
           <line
             x1="80"
-            y1={dims.height - 360}
+            y1={isStory ? dims.height - 360 : dims.height - 92}
             x2={dims.width - 80}
-            y2={dims.height - 360}
+            y2={isStory ? dims.height - 360 : dims.height - 92}
             stroke={colors.accent}
             strokeWidth="2"
             opacity="0.18"
@@ -478,15 +557,15 @@ function ThemeDecorations({
 
   // bunker
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: -120,
-        bottom: -160,
-        display: "flex",
-        opacity: 0.55,
-      }}
-    >
+      <div
+        style={{
+          position: "absolute",
+          left: isStory ? -120 : -260,
+          bottom: isStory ? -160 : -330,
+          display: "flex",
+          opacity: isStory ? 0.55 : 0.35,
+        }}
+      >
       <svg width="640" height="500" viewBox="0 0 640 500">
         <path
           d="M40 460 Q40 200 320 200 Q600 200 600 460"
@@ -497,6 +576,54 @@ function ThemeDecorations({
         />
         <ellipse cx="320" cy="120" rx="30" ry="30" fill="#fdfbf1" stroke="#1d2e1f" strokeWidth="6" />
       </svg>
+    </div>
+  );
+}
+
+function PhotoBackground({
+  src,
+  colors,
+  dims,
+}: {
+  src: string;
+  colors: ThemeColors;
+  dims: { width: number; height: number };
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: dims.width,
+        height: dims.height,
+        display: "flex",
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- next/image cannot render inside ImageResponse. */}
+      <img
+        src={src}
+        width={dims.width}
+        height={dims.height}
+        alt=""
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: dims.width,
+          height: dims.height,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: dims.width,
+          height: dims.height,
+          background: colors.photoOverlay,
+        }}
+      />
     </div>
   );
 }
@@ -571,11 +698,8 @@ function formatSigned(value: number): string {
   return String(value);
 }
 
-function formatSignedDecimal(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  if (rounded === 0) return "0.00";
-  if (rounded > 0) return `+${rounded.toFixed(2)}`;
-  return rounded.toFixed(2);
+function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural;
 }
 
 function clampFontSize(text: string, sizes: number[]): number {
