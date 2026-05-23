@@ -10,6 +10,8 @@ export type ShareCardTheme = (typeof SHARE_CARD_THEMES)[number];
 export type ThemeColors = {
   /** CSS `background` value applied to the root container (gradient OK). */
   background: string;
+  /** Readability overlay applied over the photo background. */
+  photoOverlay: string;
   /** Body text / primary foreground color. */
   text: string;
   /** Slightly muted variant for sublines + labels. */
@@ -44,14 +46,16 @@ export const THEMES: Record<ShareCardTheme, ThemeMeta> = {
     label: "Sunrise tee",
     colors: {
       background:
-        "linear-gradient(180deg, #f8c875 0%, #f8c875 18%, #fb923c 28%, #2f7a4d 62%, #1f5d3a 100%)",
-      text: "#0f2014",
-      textMuted: "rgba(15, 32, 20, 0.72)",
-      scoreText: "#fef9ec",
-      scoreShadow: "rgba(15, 32, 20, 0.42)",
-      card: "rgba(15, 32, 20, 0.22)",
-      cardBorder: "rgba(15, 32, 20, 0.32)",
-      accent: "#fef9ec",
+        "linear-gradient(180deg, #22351f 0%, #0f2b1e 58%, #07170f 100%)",
+      photoOverlay:
+        "linear-gradient(180deg, rgba(6, 18, 14, 0.34) 0%, rgba(6, 18, 14, 0.62) 48%, rgba(6, 18, 14, 0.9) 100%)",
+      text: "#fff8e7",
+      textMuted: "rgba(255, 248, 231, 0.76)",
+      scoreText: "#fff8e7",
+      scoreShadow: "rgba(0, 0, 0, 0.58)",
+      card: "rgba(6, 18, 14, 0.54)",
+      cardBorder: "rgba(255, 248, 231, 0.28)",
+      accent: "#f6c76c",
       good: "#bef264",
       warn: "#fed7aa",
       bad: "#fecaca",
@@ -64,7 +68,9 @@ export const THEMES: Record<ShareCardTheme, ThemeMeta> = {
       // Satori has flaky support for the modern `radial-gradient(size at position, …)`
       // syntax — use a linear-gradient that still reads as a twilight sky.
       background:
-        "linear-gradient(180deg, #14483b 0%, #0c2f29 55%, #072018 100%)",
+        "linear-gradient(180deg, #12362f 0%, #08231f 58%, #04130f 100%)",
+      photoOverlay:
+        "linear-gradient(180deg, rgba(5, 17, 24, 0.5) 0%, rgba(5, 17, 24, 0.72) 52%, rgba(5, 17, 24, 0.92) 100%)",
       text: "#e8fff4",
       textMuted: "rgba(232, 255, 244, 0.66)",
       scoreText: "#a5e8c9",
@@ -82,14 +88,16 @@ export const THEMES: Record<ShareCardTheme, ThemeMeta> = {
     label: "Bunker fade",
     colors: {
       background:
-        "linear-gradient(180deg, #efe0bb 0%, #e7d3a8 22%, #c8ce9b 52%, #6e9b6f 78%, #274d36 100%)",
-      text: "#1d2e1f",
-      textMuted: "rgba(29, 46, 31, 0.66)",
-      scoreText: "#fdfbf1",
-      scoreShadow: "rgba(29, 46, 31, 0.42)",
-      card: "rgba(29, 46, 31, 0.18)",
-      cardBorder: "rgba(29, 46, 31, 0.28)",
-      accent: "#fdfbf1",
+        "linear-gradient(180deg, #2a3422 0%, #142719 58%, #07170f 100%)",
+      photoOverlay:
+        "linear-gradient(180deg, rgba(18, 24, 13, 0.32) 0%, rgba(18, 24, 13, 0.62) 48%, rgba(18, 24, 13, 0.9) 100%)",
+      text: "#fff8e7",
+      textMuted: "rgba(255, 248, 231, 0.72)",
+      scoreText: "#fff8e7",
+      scoreShadow: "rgba(0, 0, 0, 0.56)",
+      card: "rgba(18, 24, 13, 0.52)",
+      cardBorder: "rgba(255, 248, 231, 0.26)",
+      accent: "#d8c28a",
       good: "#86efac",
       warn: "#fcd34d",
       bad: "#fca5a5",

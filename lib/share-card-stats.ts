@@ -1,7 +1,16 @@
 import "server-only";
 
 import { format } from "date-fns";
-import { parTypeBreakdown, type RoundFull } from "@/lib/stats";
+import type { RoundFull } from "@/lib/stats";
+
+export type ShareCardScoreBreakdown = {
+  eaglesOrBetter: number;
+  birdies: number;
+  pars: number;
+  bogeys: number;
+  doubles: number;
+  triplesOrWorse: number;
+};
 
 export type ShareCardStats = {
   courseName: string;
@@ -22,8 +31,7 @@ export type ShareCardStats = {
   backTotal: number | null;
   /** Best (lowest) per-hole score over par, e.g. -2 for an eagle. */
   bestHoleOverPar: number | null;
-  /** Par 3 / 4 / 5 averages relative to par for THIS round. */
-  parTypeAverages: { par3: number | null; par4: number | null; par5: number | null };
+  scoreBreakdown: ShareCardScoreBreakdown;
   /** Owner's name; null if unknown (we don't leak email here). */
   userName: string | null;
 };
@@ -66,9 +74,26 @@ export function buildShareCardStats(
         )
       : null;
 
-  const parBreakdown = parTypeBreakdown([round]);
-  const lookup = (p: 3 | 4 | 5) =>
-    parBreakdown.find((entry) => entry.parType === p && entry.holes > 0)?.avgVsPar ?? null;
+  const scoreBreakdown = sortedHoles.reduce<ShareCardScoreBreakdown>(
+    (counts, hole) => {
+      const relativeToPar = hole.strokes - hole.par;
+      if (relativeToPar <= -2) counts.eaglesOrBetter += 1;
+      else if (relativeToPar === -1) counts.birdies += 1;
+      else if (relativeToPar === 0) counts.pars += 1;
+      else if (relativeToPar === 1) counts.bogeys += 1;
+      else if (relativeToPar === 2) counts.doubles += 1;
+      else counts.triplesOrWorse += 1;
+      return counts;
+    },
+    {
+      eaglesOrBetter: 0,
+      birdies: 0,
+      pars: 0,
+      bogeys: 0,
+      doubles: 0,
+      triplesOrWorse: 0,
+    },
+  );
 
   return {
     courseName: round.course.name,
@@ -86,11 +111,7 @@ export function buildShareCardStats(
       bestHoleOverPar == null || !Number.isFinite(bestHoleOverPar)
         ? null
         : bestHoleOverPar,
-    parTypeAverages: {
-      par3: lookup(3),
-      par4: lookup(4),
-      par5: lookup(5),
-    },
+    scoreBreakdown,
     userName: userName?.trim() || null,
   };
 }
