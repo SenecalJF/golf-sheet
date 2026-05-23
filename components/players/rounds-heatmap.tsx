@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { CalendarDays, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -167,12 +168,13 @@ function DayDetails({ day }: { day: CalendarDay | null }) {
         <p className="mt-3 text-sm text-muted-foreground">No rounds played on this day.</p>
       ) : (
         <div className="mt-3 space-y-3">
-          {day.rounds.map((round, index) => {
+          {day.rounds.map((round) => {
             const overPar = round.totalStrokes - round.totalPar;
             return (
-              <div
-                key={`${round.courseName}-${index}`}
-                className="rounded-lg border border-border/60 bg-card/70 p-3"
+              <Link
+                key={round.id}
+                href={`/rounds/${round.id}`}
+                className="block rounded-lg border border-border/60 bg-card/70 p-3 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -205,7 +207,7 @@ function DayDetails({ day }: { day: CalendarDay | null }) {
                     Differential {round.scoreDiff.toFixed(1)}
                   </div>
                 )}
-              </div>
+              </Link>
             );
           })}
         </div>

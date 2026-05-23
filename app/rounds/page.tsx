@@ -235,17 +235,25 @@ function SentPendingRounds({ rounds }: { rounds: PendingRoundSummary[] }) {
       <ul className="divide-y divide-border/60">
         {rounds.map((round) => {
           const over = round.totalStrokes - round.totalPar;
+          const acceptedRoundHref =
+            round.status === "ACCEPTED" && round.acceptedRoundId
+              ? `/rounds/${round.acceptedRoundId}`
+              : null;
+          const roundName =
+            round.scorecardPlayerName ?? round.scorecardRowLabel ?? "Shared scorecard row";
           return (
             <li
               key={round.id}
               className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0">
-                <div className="font-medium">
-                  {round.scorecardPlayerName ??
-                    round.scorecardRowLabel ??
-                    "Shared scorecard row"}
-                </div>
+                {acceptedRoundHref ? (
+                  <Link href={acceptedRoundHref} className="font-medium hover:text-primary">
+                    {roundName}
+                  </Link>
+                ) : (
+                  <div className="font-medium">{roundName}</div>
+                )}
                 <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>To {round.recipient.name}</span>
                   <span>·</span>

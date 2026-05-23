@@ -59,7 +59,7 @@ export default async function PendingInboxPage({
         <Card className="grid place-items-center p-12 text-center">
           <Inbox className="mb-3 h-8 w-8 text-muted-foreground" />
           <p className="max-w-md text-sm text-muted-foreground">
-            Nothing in your inbox yet. When someone shares a scorecard row with you it'll appear here.
+            Nothing in your inbox yet. When someone shares a scorecard row with you it will appear here.
           </p>
         </Card>
       ) : (
