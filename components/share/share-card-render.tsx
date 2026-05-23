@@ -87,14 +87,7 @@ export function renderShareCard({
             color: colors.textMuted,
           }}
         >
-          <span>{stats.city}</span>
-          <span>·</span>
-          <span>{stats.dateLabel}</span>
-          <span>·</span>
-          <span>
-            {stats.holeCount} holes
-            {stats.nineLabel ? ` · ${stats.nineLabel}` : ""}
-          </span>
+          <span>{`${stats.city} · ${stats.dateLabel} · ${stats.holeCount} holes${stats.nineLabel ? ` · ${stats.nineLabel}` : ""}`}</span>
         </div>
         <div
           style={{
@@ -410,142 +403,95 @@ function ThemeDecorations({
   colors: ReturnType<typeof getColors>;
   dims: { width: number; height: number };
 }) {
-  // All decorations are absolutely positioned behind content via z-index ordering.
+  // Satori does not reliably support SVG <pattern>, <mask>, or <filter> elements,
+  // and it can choke on the `inset: 0` shorthand. So every decoration here is a
+  // single absolutely-positioned div wrapping a single primitive SVG with
+  // explicit position offsets.
   if (theme === "sunrise") {
     return (
-      <>
-        {/* Flagstick in the bottom-right. */}
-        <div
-          style={{
-            position: "absolute",
-            right: -40,
-            bottom: -60,
-            opacity: 0.6,
-            display: "flex",
-          }}
-        >
-          <svg width="520" height="780" viewBox="0 0 520 780" fill="none">
-            <rect x="240" y="80" width="14" height="640" rx="6" fill="#fef3c7" />
-            <path
-              d="M254 80 L450 130 L254 200 Z"
-              fill="#fbbf24"
-              stroke="#92400e"
-              strokeWidth="6"
-              strokeLinejoin="round"
-            />
-            <ellipse cx="247" cy="730" rx="80" ry="20" fill="rgba(15,32,20,0.18)" />
-          </svg>
-        </div>
-        {/* Subtle grass texture across the bottom third. */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            opacity: 0.18,
-          }}
-        >
-          <svg width="100%" height="100%" viewBox="0 0 1080 1920" preserveAspectRatio="none">
-            <defs>
-              <pattern id="blades" x="0" y="0" width="60" height="80" patternUnits="userSpaceOnUse">
-                <path
-                  d="M30 80 Q26 50 30 20 Q34 50 30 80 Z"
-                  fill="#0f2014"
-                  opacity="0.35"
-                />
-              </pattern>
-            </defs>
-            <rect x="0" y={dims.height * 0.65} width="1080" height={dims.height * 0.4} fill="url(#blades)" />
-          </svg>
-        </div>
-      </>
+      <div
+        style={{
+          position: "absolute",
+          right: -40,
+          bottom: -80,
+          opacity: 0.55,
+          display: "flex",
+        }}
+      >
+        <svg width="520" height="780" viewBox="0 0 520 780">
+          <rect x="240" y="80" width="14" height="640" rx="6" fill="#fef3c7" />
+          <path
+            d="M254 80 L450 130 L254 200 Z"
+            fill="#fbbf24"
+            stroke="#92400e"
+            strokeWidth="6"
+            strokeLinejoin="round"
+          />
+          <ellipse cx="247" cy="730" rx="80" ry="20" fill="#0f2014" opacity="0.22" />
+        </svg>
+      </div>
     );
   }
 
   if (theme === "twilight") {
     return (
-      <>
-        {/* Constellation dots along the top. */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-          }}
-        >
-          <svg width="100%" height="100%" viewBox="0 0 1080 1920" preserveAspectRatio="none">
-            {CONSTELLATION_DOTS.map((dot, i) => (
-              <circle
-                key={i}
-                cx={dot.x}
-                cy={dot.y}
-                r={dot.r}
-                fill={colors.accent}
-                opacity={dot.o}
-              />
-            ))}
-          </svg>
-        </div>
-        {/* Horizon rule. */}
-        <div
-          style={{
-            position: "absolute",
-            left: 80,
-            right: 80,
-            bottom: 360,
-            height: 2,
-            background: colors.accent,
-            opacity: 0.18,
-            display: "flex",
-          }}
-        />
-      </>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: "flex",
+        }}
+      >
+        <svg width={dims.width} height={dims.height} viewBox={`0 0 ${dims.width} ${dims.height}`}>
+          {CONSTELLATION_DOTS.map((dot, i) => (
+            <circle
+              key={i}
+              cx={dot.x}
+              cy={dot.y}
+              r={dot.r}
+              fill={colors.accent}
+              opacity={dot.o}
+            />
+          ))}
+          <line
+            x1="80"
+            y1={dims.height - 360}
+            x2={dims.width - 80}
+            y2={dims.height - 360}
+            stroke={colors.accent}
+            strokeWidth="2"
+            opacity="0.18"
+          />
+        </svg>
+      </div>
     );
   }
 
   // bunker
   return (
-    <>
-      {/* Half-circle bunker outline in the bottom-left. */}
-      <div
-        style={{
-          position: "absolute",
-          left: -120,
-          bottom: -160,
-          display: "flex",
-          opacity: 0.55,
-        }}
-      >
-        <svg width="640" height="500" viewBox="0 0 640 500" fill="none">
-          <path
-            d="M40 460 Q40 200 320 200 Q600 200 600 460"
-            stroke="#1d2e1f"
-            strokeWidth="10"
-            fill="rgba(231,211,168,0.55)"
-          />
-          <ellipse cx="320" cy="120" rx="30" ry="30" fill="#fdfbf1" stroke="#1d2e1f" strokeWidth="6" />
-        </svg>
-      </div>
-      {/* Dot grain texture across the top sand band. */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          opacity: 0.18,
-          display: "flex",
-        }}
-      >
-        <svg width="100%" height="100%" viewBox="0 0 1080 1920" preserveAspectRatio="none">
-          <defs>
-            <pattern id="grain" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-              <circle cx="6" cy="6" r="1.2" fill="#1d2e1f" />
-              <circle cx="18" cy="14" r="0.8" fill="#1d2e1f" />
-            </pattern>
-          </defs>
-          <rect x="0" y="0" width="1080" height="720" fill="url(#grain)" />
-        </svg>
-      </div>
-    </>
+    <div
+      style={{
+        position: "absolute",
+        left: -120,
+        bottom: -160,
+        display: "flex",
+        opacity: 0.55,
+      }}
+    >
+      <svg width="640" height="500" viewBox="0 0 640 500">
+        <path
+          d="M40 460 Q40 200 320 200 Q600 200 600 460"
+          stroke="#1d2e1f"
+          strokeWidth="10"
+          fill="#e7d3a8"
+          fillOpacity="0.55"
+        />
+        <ellipse cx="320" cy="120" rx="30" ry="30" fill="#fdfbf1" stroke="#1d2e1f" strokeWidth="6" />
+      </svg>
+    </div>
   );
 }
 

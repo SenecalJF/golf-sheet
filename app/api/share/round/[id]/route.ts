@@ -17,8 +17,8 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Rendering happens client-side via Satori; usually 200-600ms, well under any
-// platform limit. Cap conservatively for safety.
+// Rendering happens via Satori; usually 200-600ms, well under any platform
+// limit. Cap conservatively for safety.
 export const maxDuration = 15;
 
 export async function GET(
@@ -55,12 +55,30 @@ export async function GET(
 
   const stats = buildShareCardStats(round, round.user?.name ?? null);
 
-  return new ImageResponse(renderShareCard({ stats, theme, size }), {
-    width: dims.width,
-    height: dims.height,
-    headers: {
-      // Personal image; keep a short hot cache for quick re-shares.
-      "Cache-Control": "private, max-age=60",
-    },
-  });
+  // Wrap the ImageResponse construction explicitly so any Satori failure
+  // (e.g. unsupported CSS, malformed SVG) bubbles up with a useful log line
+  // instead of the platform's silent 500.
+  try {
+    return new ImageResponse(renderShareCard({ stats, theme, size }), {
+      width: dims.width,
+      height: dims.height,
+      headers: {
+        "Cache-Control": "private, max-age=60",
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error("share-card render failed", {
+      roundId: round.id,
+      theme,
+      size,
+      message,
+      stack,
+    });
+    return NextResponse.json(
+      { error: "Image generation failed", detail: message },
+      { status: 500 },
+    );
+  }
 }
