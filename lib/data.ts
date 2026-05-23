@@ -63,6 +63,7 @@ export type PublicPlayerStats = {
     avgScore: number | null;
     byFormat: Record<9 | 18, ScoreFormatSummary>;
   }[];
+  recentRounds: PublicRoundSummary[];
   roundCalendars: RoundCalendar[];
   frontBack: {
     frontAvgVsPar: number | null;
@@ -77,9 +78,22 @@ export type RoundCalendar = {
   days: RoundCalendarDay[];
 };
 
+export type PublicRoundSummary = {
+  id: string;
+  date: Date;
+  courseName: string;
+  city: string;
+  teeName: string | null;
+  holeCount: number;
+  totalStrokes: number;
+  totalPar: number;
+  scoreDiff: number | null;
+};
+
 export type RoundCalendarDay = {
   date: string;
   rounds: {
+    id: string;
     courseName: string;
     city: string;
     teeName: string | null;
@@ -240,6 +254,20 @@ export async function getRoundForUser(
   });
 }
 
+export type RoundForViewer = RoundFull & {
+  user: Pick<User, "id" | "name" | "image"> | null;
+};
+
+export async function getRoundForViewer(roundId: string): Promise<RoundForViewer | null> {
+  return prisma.round.findUnique({
+    where: { id: roundId },
+    include: {
+      ...roundFullInclude,
+      user: { select: { id: true, name: true, image: true } },
+    },
+  });
+}
+
 export async function getCoursesForNewRound() {
   return prisma.course.findMany({
     include: { tees: { orderBy: { name: "asc" } } },
@@ -379,6 +407,7 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
     },
     recentTrend: buildRecentTrend(rounds),
     mostPlayedCourses: mostPlayedCourses(rounds),
+    recentRounds: buildRecentRounds(rounds),
     roundCalendars: buildRoundCalendars(rounds, year),
     frontBack: {
       frontAvgVsPar: frontBack.front.avgVsPar,
@@ -508,6 +537,7 @@ function buildRoundCalendar(rounds: RoundFull[], year: number): RoundCalendar {
     grouped.set(date, [
       ...(grouped.get(date) ?? []),
       {
+        id: round.id,
         courseName: round.course.name,
         city: round.course.city,
         teeName: round.tee?.name ?? null,
@@ -528,6 +558,23 @@ function buildRoundCalendar(rounds: RoundFull[], year: number): RoundCalendar {
       }))
       .sort((a, b) => a.date.localeCompare(b.date)),
   };
+}
+
+function buildRecentRounds(rounds: RoundFull[]): PublicRoundSummary[] {
+  return [...rounds]
+    .sort((a, b) => b.date.getTime() - a.date.getTime() || b.id.localeCompare(a.id))
+    .slice(0, 5)
+    .map((round) => ({
+      id: round.id,
+      date: round.date,
+      courseName: round.course.name,
+      city: round.course.city,
+      teeName: round.tee?.name ?? null,
+      holeCount: round.holeCount,
+      totalStrokes: round.totalStrokes,
+      totalPar: round.totalPar,
+      scoreDiff: round.scoreDiff ?? null,
+    }));
 }
 
 function average(values: number[]): number | null {

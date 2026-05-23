@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Calendar, MapPin, Pencil } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Pencil, UserRound } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { HoleScoreGrid } from "@/components/rounds/hole-score-grid";
 import { RoundDeleteButton } from "@/components/rounds/round-delete-button";
 import { format } from "date-fns";
 import { requireUser } from "@/lib/auth-utils";
-import { getRoundForUser } from "@/lib/data";
+import { getRoundForViewer } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -19,16 +19,19 @@ export default async function RoundDetail({
 }) {
   const { id } = await params;
   const user = await requireUser();
-  const r = await getRoundForUser(id, user.id);
+  const r = await getRoundForViewer(id);
   if (!r) notFound();
+  const isOwner = r.userId === user.id;
   const over = r.totalStrokes - r.totalPar;
+  const backHref = isOwner ? "/rounds" : r.user ? `/players/${r.user.id}` : "/players";
+  const backLabel = isOwner ? "Rounds" : "Player";
 
   return (
     <div className="space-y-8">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/rounds">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Rounds
+          <Link href={backHref}>
+            <ArrowLeft className="mr-1 h-4 w-4" /> {backLabel}
           </Link>
         </Button>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
@@ -40,6 +43,13 @@ export default async function RoundDetail({
               <h1 className="text-3xl font-semibold tracking-tight">{r.course.name}</h1>
             </div>
             <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+              {!isOwner && (
+                <>
+                  <UserRound className="h-3.5 w-3.5" />
+                  {r.user?.name ?? "Unknown player"}
+                  <span>·</span>
+                </>
+              )}
               <MapPin className="h-3.5 w-3.5" /> {r.course.city}
               <span>·</span>
               {format(r.date, "EEE, MMM d, yyyy")}
@@ -54,12 +64,14 @@ export default async function RoundDetail({
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3 text-right">
-            <Button asChild variant="outline">
-              <Link href={`/rounds/${r.id}/edit`}>
-                <Pencil className="mr-1 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
+            {isOwner && (
+              <Button asChild variant="outline">
+                <Link href={`/rounds/${r.id}/edit`}>
+                  <Pencil className="mr-1 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            )}
             <div>
               <div className="number-mono text-4xl font-semibold">{r.totalStrokes}</div>
               <div
@@ -85,7 +97,7 @@ export default async function RoundDetail({
         </div>
       </div>
 
-      {r.sourceImage && (
+      {isOwner && r.sourceImage && (
         <Card className="p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -111,16 +123,18 @@ export default async function RoundDetail({
         />
       </Card>
 
-      {r.notes && (
+      {isOwner && r.notes && (
         <Card className="p-6">
           <h2 className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Notes</h2>
           <p className="text-sm">{r.notes}</p>
         </Card>
       )}
 
-      <div className="flex justify-end">
-        <RoundDeleteButton id={r.id} />
-      </div>
+      {isOwner && (
+        <div className="flex justify-end">
+          <RoundDeleteButton id={r.id} />
+        </div>
+      )}
     </div>
   );
 }

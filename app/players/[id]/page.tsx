@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Flag,
   GitCompareArrows,
+  MapPin,
   Trophy,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { PlayerPhoto } from "@/components/players/player-photo";
 import { RoundsHeatmap } from "@/components/players/rounds-heatmap";
 import { requireUser } from "@/lib/auth-utils";
-import { getPublicPlayerStats } from "@/lib/data";
+import { getPublicPlayerStats, type PublicPlayerStats } from "@/lib/data";
 import type { ScoreFormatSummary } from "@/lib/stats";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +80,8 @@ export default async function PlayerProfilePage({
         <FormatScoreCard label="18-hole scoring" stat={stats.scoreByFormat[18]} />
         <FormatScoreCard label="9-hole scoring" stat={stats.scoreByFormat[9]} />
       </div>
+
+      <RecentRounds rounds={stats.recentRounds} />
 
       {stats.tournamentIdentities.some((identity) => identity.image) && (
         <Card className="p-6">
@@ -198,6 +201,68 @@ export default async function PlayerProfilePage({
   );
 }
 
+function RecentRounds({ rounds }: { rounds: PublicPlayerStats["recentRounds"] }) {
+  return (
+    <Card className="p-6">
+      <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+        <CalendarDays className="h-3.5 w-3.5" /> Recent rounds
+      </div>
+      {rounds.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No rounds yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {rounds.map((round) => {
+            const overPar = round.totalStrokes - round.totalPar;
+            return (
+              <Link
+                key={round.id}
+                href={`/rounds/${round.id}`}
+                className="rounded-xl border border-border/60 bg-secondary/40 p-4 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium tracking-tight">
+                      {round.courseName}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3" />
+                      <span>{round.city}</span>
+                      <span>·</span>
+                      <span>{formatRoundDate(round.date)}</span>
+                      <span>·</span>
+                      <span>{round.holeCount}H</span>
+                      {round.teeName && (
+                        <>
+                          <span>·</span>
+                          <span>{round.teeName}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="number-mono text-2xl font-semibold">
+                      {round.totalStrokes}
+                    </div>
+                    <div className={scoreTone(overPar)}>
+                      {overPar >= 0 ? "+" : ""}
+                      {overPar} vs par
+                    </div>
+                  </div>
+                </div>
+                {round.scoreDiff != null && (
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    Differential {round.scoreDiff.toFixed(1)}
+                  </div>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function FormatScoreCard({ label, stat }: { label: string; stat: ScoreFormatSummary }) {
   return (
     <Card className="p-6">
@@ -269,4 +334,17 @@ function formatBest(stat: ScoreFormatSummary): string {
   if (stat.best == null) return "—";
   if (stat.bestOverPar == null) return String(stat.best);
   return `${stat.best} (${stat.bestOverPar >= 0 ? "+" : ""}${stat.bestOverPar})`;
+}
+
+function formatRoundDate(date: Date): string {
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(
+    date,
+  );
+}
+
+function scoreTone(over: number): string {
+  return (
+    "text-xs " +
+    (over <= 0 ? "text-primary" : over < 5 ? "text-amber-400" : "text-destructive")
+  );
 }
