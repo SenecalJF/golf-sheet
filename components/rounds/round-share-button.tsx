@@ -38,7 +38,7 @@ export function RoundShareButton({
     const downloadFileName = `golf-sheet-${slug(courseName)}-${totalStrokes}.jpg`;
 
     try {
-      const res = await fetch(`/api/share/round/${roundId}?size=story`, {
+      const res = await fetch(`/api/share/round/${roundId}?size=square`, {
         method: "GET",
         signal: controller.signal,
       });
