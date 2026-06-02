@@ -17,7 +17,7 @@ export default async function EditRoundPage({
   const user = await requireUser();
   const [round, courses] = await Promise.all([
     getRoundForUser(id, user.id),
-    getCoursesForNewRound(),
+    getCoursesForNewRound(user.id),
   ]);
   if (!round) notFound();
 
