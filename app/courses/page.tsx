@@ -1,8 +1,6 @@
-import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Flag, MapPin, Plus, Info } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AddCourseDialog } from "@/components/courses/add-course-dialog";
+import { CoursesGrid } from "@/components/courses/courses-grid";
 import { requireUser } from "@/lib/auth-utils";
 import { getSharedCoursesWithUserCounts } from "@/lib/data";
 
@@ -21,7 +19,8 @@ export default async function CoursesPage() {
             {courses.length} courses across Quebec
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Rating + slope are shared. Your round counts stay private to your account.
+            Sorted by your most-played. Rating + slope are shared; community totals are
+            aggregate-only.
           </p>
         </div>
         <AddCourseDialog
@@ -33,50 +32,7 @@ export default async function CoursesPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {courses.map((c) => {
-          const tee = c.tees[0];
-          const needsSetup = !tee || tee.rating == null || tee.slope == null;
-          return (
-            <Link
-              key={c.id}
-              href={`/courses/${c.id}`}
-              className="group"
-            >
-              <Card className="h-full p-5 transition-colors group-hover:border-primary/40">
-                <div className="flex items-start justify-between">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary">
-                    <Flag className="h-5 w-5" />
-                  </div>
-                  {needsSetup ? (
-                    <Badge variant="outline" className="border-border/60 text-muted-foreground">
-                      <Info className="mr-1 h-3 w-3" /> No rating yet
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="border-primary/40 text-primary">
-                      Handicap-ready
-                    </Badge>
-                  )}
-                </div>
-                <h3 className="mt-4 text-base font-semibold tracking-tight group-hover:text-primary">
-                  {c.name}
-                </h3>
-                <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <MapPin className="h-3 w-3" /> {c.city}, {c.province}
-                </div>
-                <div className="mt-4 flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">
-                    {c._count.rounds} round{c._count.rounds === 1 ? "" : "s"}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {c.tees.length} tee{c.tees.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
+      <CoursesGrid courses={courses} />
     </div>
   );
 }

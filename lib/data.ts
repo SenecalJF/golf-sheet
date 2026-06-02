@@ -268,21 +268,37 @@ export async function getRoundForViewer(roundId: string): Promise<RoundForViewer
   });
 }
 
-export async function getCoursesForNewRound() {
-  return prisma.course.findMany({
-    include: { tees: { orderBy: { name: "asc" } } },
-    orderBy: { name: "asc" },
-  });
+export async function getCoursesForNewRound(userId: string) {
+  const [courses, userCounts] = await Promise.all([
+    prisma.course.findMany({ include: { tees: { orderBy: { name: "asc" } } } }),
+    prisma.round.groupBy({ by: ["courseId"], where: { userId }, _count: { _all: true } }),
+  ]);
+  const byCourse = new Map(userCounts.map((c) => [c.courseId, c._count._all]));
+  return courses
+    .map((c) => ({ ...c, playCount: byCourse.get(c.id) ?? 0 }))
+    .sort((a, b) => b.playCount - a.playCount || a.name.localeCompare(b.name));
 }
 
 export async function getSharedCoursesWithUserCounts(userId: string) {
-  return prisma.course.findMany({
-    include: {
-      tees: true,
-      _count: { select: { rounds: { where: { userId } } } },
-    },
-    orderBy: { name: "asc" },
-  });
+  const [courses, userCounts] = await Promise.all([
+    prisma.course.findMany({
+      include: { tees: true, _count: { select: { rounds: true } } },
+    }),
+    prisma.round.groupBy({ by: ["courseId"], where: { userId }, _count: { _all: true } }),
+  ]);
+  const byCourse = new Map(userCounts.map((c) => [c.courseId, c._count._all]));
+  return courses
+    .map((c) => ({
+      ...c,
+      userRounds: byCourse.get(c.id) ?? 0,
+      totalRounds: c._count.rounds,
+    }))
+    .sort(
+      (a, b) =>
+        b.userRounds - a.userRounds ||
+        b.totalRounds - a.totalRounds ||
+        a.name.localeCompare(b.name),
+    );
 }
 
 export async function getSharedCourseForUser(courseId: string, userId: string) {

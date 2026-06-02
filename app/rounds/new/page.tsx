@@ -15,7 +15,7 @@ export default async function NewRoundPage({
   const params = await searchParams;
   const tournamentEditionId = firstParam(params.tournamentEditionId);
   const [courses, keyStatus, shareableUsers, tournamentContext] = await Promise.all([
-    getCoursesForNewRound(),
+    getCoursesForNewRound(user.id),
     getAnthropicKeyStatus(user.id),
     getShareableUsers(user.id),
     tournamentEditionId
