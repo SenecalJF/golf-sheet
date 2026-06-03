@@ -16,6 +16,7 @@ import { ParTypeChart } from "@/components/analytics/par-type-chart";
 import { HoleHeatmap } from "@/components/analytics/hole-heatmap";
 import { AiInsightsPanel } from "@/components/analytics/ai-insights-panel";
 import { FrontBackPanel } from "@/components/analytics/front-back-panel";
+import { CourseCombobox } from "@/components/rounds/course-combobox";
 import {
   buildTrend,
   parTypeBreakdown,
@@ -84,26 +85,13 @@ export function AnalyticsView({
           </p>
         </div>
         <div className="grid w-full grid-cols-1 gap-3 sm:w-auto sm:min-w-[28rem] sm:grid-cols-2">
-          <Select
+          <CourseCombobox
+            courses={courses}
             value={courseId}
-            onValueChange={(v) => setCourseId(v ?? "all")}
-            items={[
-              { label: "All courses", value: "all" },
-              ...courses.map((c) => ({ label: c.name, value: c.id })),
-            ]}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All courses</SelectItem>
-              {courses.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onChange={(v) => setCourseId(v || "all")}
+            includeAllOption
+            triggerClassName="mt-0 h-10"
+          />
           <Select
             value={holeCountFilter}
             onValueChange={(v) =>
