@@ -199,7 +199,10 @@ export default async function PlayersPage({
                   {format === "all" ? (
                     <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                       <Metric label="Rounds" value={formatStats.rounds} />
-                      <Metric label="Avg vs par" value={formatSigned(formatStats.avgOverPar)} />
+                      <Metric
+                        label="18H avg vs par"
+                        value={formatSigned(formatStats.avgOverPar)}
+                      />
                       <FormatMetric label="18H best" stat={stats.byFormat[18]} />
                       <FormatMetric label="9H best" stat={stats.byFormat[9]} />
                     </div>

@@ -130,7 +130,7 @@ export default async function PlayerProfilePage({
             <BarChart3 className="h-3.5 w-3.5" /> Scoring
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Metric label="Avg vs par" value={formatSigned(stats.avgVsPar)} />
+            <Metric label="18H avg vs par" value={formatSigned(stats.avgVsPar)} />
             <Metric
               label="Best diff"
               value={stats.bestDifferential == null ? "—" : stats.bestDifferential.toFixed(1)}

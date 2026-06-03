@@ -380,7 +380,7 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
   const currentYearRounds = rounds.filter((round) => round.date.getFullYear() === year);
   const roundsThisYear = currentYearRounds.length;
   const scores = rounds.map((round) => round.totalStrokes);
-  const vsPars = rounds.map((round) => round.totalStrokes - round.totalPar);
+  const vsPars = rounds.map(normalizeRoundVsPar);
   const diffs = rounds
     .map((round) => round.scoreDiff)
     .filter((diff): diff is number => diff != null);
@@ -449,7 +449,7 @@ const publicTournamentIdentitySelect = {
 
 function buildLeaderboardStats(rounds: RoundFull[]): PlayerLeaderboardStats {
   const scores = rounds.map((round) => round.totalStrokes);
-  const vsPars = rounds.map((round) => round.totalStrokes - round.totalPar);
+  const vsPars = rounds.map(normalizeRoundVsPar);
   const diffs = rounds
     .map((round) => round.scoreDiff)
     .filter((diff): diff is number => diff != null);
@@ -490,10 +490,8 @@ function buildRecentTrend(rounds: RoundFull[]): PublicPlayerStats["recentTrend"]
   const chronological = [...rounds].sort((a, b) => a.date.getTime() - b.date.getTime());
   const recent = chronological.slice(-5);
   const previous = chronological.slice(-10, -5);
-  const recentAvgVsPar = average(recent.map((round) => round.totalStrokes - round.totalPar));
-  const previousAvgVsPar = average(
-    previous.map((round) => round.totalStrokes - round.totalPar),
-  );
+  const recentAvgVsPar = average(recent.map(normalizeRoundVsPar));
+  const previousAvgVsPar = average(previous.map(normalizeRoundVsPar));
   const delta =
     recentAvgVsPar != null && previousAvgVsPar != null
       ? Math.round((recentAvgVsPar - previousAvgVsPar) * 10) / 10
@@ -596,6 +594,12 @@ function buildRecentRounds(rounds: RoundFull[]): PublicRoundSummary[] {
 function average(values: number[]): number | null {
   if (values.length === 0) return null;
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
+}
+
+function normalizeRoundVsPar(round: Pick<RoundFull, "holeCount" | "totalStrokes" | "totalPar">) {
+  return round.holeCount === 9
+    ? (round.totalStrokes - round.totalPar) * 2
+    : round.totalStrokes - round.totalPar;
 }
 
 const roundFullInclude = {
