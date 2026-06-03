@@ -37,7 +37,8 @@ export default async function RoundsPage({
 
   const receivedPending =
     pendingRounds?.received.filter((r) => r.status === "PENDING") ?? [];
-  const sentPending = pendingRounds?.sent.slice(0, SENT_PREVIEW) ?? [];
+  const sentPending =
+    pendingRounds?.sent.filter((r) => r.status === "PENDING").slice(0, SENT_PREVIEW) ?? [];
 
   return (
     <div className="space-y-8">
