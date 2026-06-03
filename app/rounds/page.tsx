@@ -37,7 +37,8 @@ export default async function RoundsPage({
 
   const receivedPending =
     pendingRounds?.received.filter((r) => r.status === "PENDING") ?? [];
-  const sentPending = pendingRounds?.sent.slice(0, SENT_PREVIEW) ?? [];
+  const sentPending =
+    pendingRounds?.sent.filter((r) => r.status === "PENDING").slice(0, SENT_PREVIEW) ?? [];
 
   return (
     <div className="space-y-8">
@@ -79,42 +80,34 @@ export default async function RoundsPage({
                 <li key={r.id}>
                   <Link
                     href={`/rounds/${r.id}`}
-                    className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-secondary/30"
+                    className="flex items-center justify-between gap-3 px-4 py-4 transition-colors hover:bg-secondary/30 sm:gap-4 sm:px-6"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                      <div className="hidden h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary sm:grid">
                         <Calendar className="h-4 w-4" />
                       </div>
-                      <div>
-                        <div className="font-medium">{r.course.name}</div>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3" /> {r.course.city}
-                          <span>·</span>
-                          {format(r.date, "MMM d, yyyy")}
-                          <span>·</span>
-                          {r.holeCount}H
-                          {r.tee && (
-                            <>
-                              <span>·</span>
-                              {r.tee.name}
-                            </>
-                          )}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{r.course.name}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {r.course.city}
+                          </span>
+                          <span aria-hidden="true">·</span>
+                          <span>{format(r.date, "MMM d, yyyy")}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{r.holeCount}H</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-right">
-                      <div>
-                        <div className="number-mono text-2xl font-semibold">
-                          {r.totalStrokes}
-                        </div>
-                        <div className={scoreTone(over)}>
-                          {over >= 0 ? "+" : ""}
-                          {over} vs par
-                        </div>
+                    <div className="shrink-0 text-right">
+                      <div className="number-mono text-2xl font-semibold leading-none">
+                        {r.totalStrokes}
                       </div>
-                      {r.scoreDiff != null && (
-                        <Badge variant="outline">Diff {r.scoreDiff.toFixed(1)}</Badge>
-                      )}
+                      <div className={scoreTone(over) + " mt-1"}>
+                        {over >= 0 ? "+" : ""}
+                        {over} vs par
+                      </div>
                     </div>
                   </Link>
                 </li>

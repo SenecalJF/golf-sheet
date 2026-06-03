@@ -268,21 +268,37 @@ export async function getRoundForViewer(roundId: string): Promise<RoundForViewer
   });
 }
 
-export async function getCoursesForNewRound() {
-  return prisma.course.findMany({
-    include: { tees: { orderBy: { name: "asc" } } },
-    orderBy: { name: "asc" },
-  });
+export async function getCoursesForNewRound(userId: string) {
+  const [courses, userCounts] = await Promise.all([
+    prisma.course.findMany({ include: { tees: { orderBy: { name: "asc" } } } }),
+    prisma.round.groupBy({ by: ["courseId"], where: { userId }, _count: { _all: true } }),
+  ]);
+  const byCourse = new Map(userCounts.map((c) => [c.courseId, c._count._all]));
+  return courses
+    .map((c) => ({ ...c, playCount: byCourse.get(c.id) ?? 0 }))
+    .sort((a, b) => b.playCount - a.playCount || a.name.localeCompare(b.name));
 }
 
 export async function getSharedCoursesWithUserCounts(userId: string) {
-  return prisma.course.findMany({
-    include: {
-      tees: true,
-      _count: { select: { rounds: { where: { userId } } } },
-    },
-    orderBy: { name: "asc" },
-  });
+  const [courses, userCounts] = await Promise.all([
+    prisma.course.findMany({
+      include: { tees: true, _count: { select: { rounds: true } } },
+    }),
+    prisma.round.groupBy({ by: ["courseId"], where: { userId }, _count: { _all: true } }),
+  ]);
+  const byCourse = new Map(userCounts.map((c) => [c.courseId, c._count._all]));
+  return courses
+    .map((c) => ({
+      ...c,
+      userRounds: byCourse.get(c.id) ?? 0,
+      totalRounds: c._count.rounds,
+    }))
+    .sort(
+      (a, b) =>
+        b.userRounds - a.userRounds ||
+        b.totalRounds - a.totalRounds ||
+        a.name.localeCompare(b.name),
+    );
 }
 
 export async function getSharedCourseForUser(courseId: string, userId: string) {
@@ -364,7 +380,7 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
   const currentYearRounds = rounds.filter((round) => round.date.getFullYear() === year);
   const roundsThisYear = currentYearRounds.length;
   const scores = rounds.map((round) => round.totalStrokes);
-  const vsPars = rounds.map((round) => round.totalStrokes - round.totalPar);
+  const vsPars = rounds.map(normalizeRoundVsPar);
   const diffs = rounds
     .map((round) => round.scoreDiff)
     .filter((diff): diff is number => diff != null);
@@ -433,7 +449,7 @@ const publicTournamentIdentitySelect = {
 
 function buildLeaderboardStats(rounds: RoundFull[]): PlayerLeaderboardStats {
   const scores = rounds.map((round) => round.totalStrokes);
-  const vsPars = rounds.map((round) => round.totalStrokes - round.totalPar);
+  const vsPars = rounds.map(normalizeRoundVsPar);
   const diffs = rounds
     .map((round) => round.scoreDiff)
     .filter((diff): diff is number => diff != null);
@@ -474,10 +490,8 @@ function buildRecentTrend(rounds: RoundFull[]): PublicPlayerStats["recentTrend"]
   const chronological = [...rounds].sort((a, b) => a.date.getTime() - b.date.getTime());
   const recent = chronological.slice(-5);
   const previous = chronological.slice(-10, -5);
-  const recentAvgVsPar = average(recent.map((round) => round.totalStrokes - round.totalPar));
-  const previousAvgVsPar = average(
-    previous.map((round) => round.totalStrokes - round.totalPar),
-  );
+  const recentAvgVsPar = average(recent.map(normalizeRoundVsPar));
+  const previousAvgVsPar = average(previous.map(normalizeRoundVsPar));
   const delta =
     recentAvgVsPar != null && previousAvgVsPar != null
       ? Math.round((recentAvgVsPar - previousAvgVsPar) * 10) / 10
@@ -580,6 +594,12 @@ function buildRecentRounds(rounds: RoundFull[]): PublicRoundSummary[] {
 function average(values: number[]): number | null {
   if (values.length === 0) return null;
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
+}
+
+function normalizeRoundVsPar(round: Pick<RoundFull, "holeCount" | "totalStrokes" | "totalPar">) {
+  return round.holeCount === 9
+    ? (round.totalStrokes - round.totalPar) * 2
+    : round.totalStrokes - round.totalPar;
 }
 
 const roundFullInclude = {

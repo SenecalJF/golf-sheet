@@ -23,7 +23,7 @@ export default async function PendingRoundPage({
   const user = await requireUser();
   const [pending, courses] = await Promise.all([
     getPendingRoundForRecipient(id, user.id),
-    getCoursesForNewRound(),
+    getCoursesForNewRound(user.id),
   ]);
   if (!pending) notFound();
 

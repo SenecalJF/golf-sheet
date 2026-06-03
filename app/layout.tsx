@@ -55,6 +55,7 @@ export default async function RootLayout({
   const pendingInboxCount = user
     ? await getPendingInboxCount(user.id).catch(() => 0)
     : 0;
+  const hasAppShell = !!user;
 
   return (
     <html
@@ -64,12 +65,18 @@ export default async function RootLayout({
     >
       <body className="min-h-full">
         <TooltipProvider delay={200}>
-          <div className="flex min-h-screen flex-col lg:flex-row">
-            <DesktopNav pendingInboxCount={pendingInboxCount} />
-            <div className="flex min-h-screen flex-1 flex-col">
-              <MobileTopBar pendingInboxCount={pendingInboxCount} />
-              <main className="flex-1 overflow-x-hidden">
-                <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+          <div className={hasAppShell ? "flex min-h-screen flex-col lg:flex-row" : "min-h-screen"}>
+            {hasAppShell && <DesktopNav pendingInboxCount={pendingInboxCount} />}
+            <div className={hasAppShell ? "flex min-h-screen flex-1 flex-col" : "min-h-screen"}>
+              {hasAppShell && <MobileTopBar pendingInboxCount={pendingInboxCount} />}
+              <main className={hasAppShell ? "flex-1 overflow-x-hidden" : "min-h-screen overflow-x-hidden"}>
+                <div
+                  className={
+                    hasAppShell
+                      ? "mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10"
+                      : "mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8"
+                  }
+                >
                   {children}
                 </div>
               </main>

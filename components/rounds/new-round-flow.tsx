@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { HoleScoreGrid, type GridHole } from "@/components/rounds/hole-score-grid";
+import { CourseCombobox } from "@/components/rounds/course-combobox";
 import { parsePars } from "@/lib/types";
 import type { ExtractedScorecard } from "@/lib/types";
 import { resizeImage } from "@/lib/resize-image";
@@ -41,6 +42,7 @@ type CourseWithTees = {
   id: string;
   name: string;
   city: string;
+  playCount: number;
   tees: {
     id: string;
     name: string;
@@ -1319,25 +1321,11 @@ function CourseDateBlock(props: {
     <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
       <div className="md:col-span-2">
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Course</Label>
-        <Select
+        <CourseCombobox
+          courses={props.courses}
           value={props.courseId}
-          onValueChange={(v) => props.setCourseId(v ?? "")}
-          items={props.courses.map((c) => ({
-            label: `${c.name} — ${c.city}`,
-            value: c.id,
-          }))}
-        >
-          <SelectTrigger className="mt-1 w-full">
-            <SelectValue placeholder="Choose a course..." />
-          </SelectTrigger>
-          <SelectContent>
-            {props.courses.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name} — {c.city}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onChange={props.setCourseId}
+        />
       </div>
 
       {!props.hideTeeDropdown && (

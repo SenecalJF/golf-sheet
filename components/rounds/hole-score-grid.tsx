@@ -94,30 +94,39 @@ export function HoleScoreGrid({
               {h.holeNumber}
             </div>
             <div className="text-[10px] text-muted-foreground">par {h.par}</div>
-            <Input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={15}
-              value={h.strokes ?? ""}
-              aria-label={`Hole ${h.holeNumber} strokes`}
-              placeholder={h.illegible ? "?" : ""}
-              disabled={readOnly}
-              onFocus={() => setActiveIdx(idx)}
-              onChange={(e) => {
-                const v = e.target.value;
-                setActiveIdx(idx);
-                update(idx, {
-                  strokes: v === "" ? null : Math.max(1, Math.min(15, Number(v))),
-                  illegible: v === "" ? h.illegible : false,
-                });
-              }}
-              className={cn(
-                "number-mono mt-1 h-10 w-full min-w-0 px-1 text-center text-base font-semibold sm:h-11 sm:text-lg",
-                confColor,
-                !readOnly && safeActiveIdx === idx && "border-primary/70 ring-2 ring-primary/40",
-              )}
-            />
+            {readOnly ? (
+              <div
+                aria-label={`Hole ${h.holeNumber}: ${h.strokes ?? "no score"} strokes${overPar == null ? "" : `, ${scoreTerm(overPar)}`}`}
+                className="number-mono relative mt-1 grid h-10 w-full min-w-0 place-items-center rounded-md bg-secondary/25 px-1 text-center text-base font-semibold sm:h-11 sm:text-lg"
+              >
+                <ScorecardMark overPar={overPar} />
+                <span className="relative z-10">{h.strokes ?? (h.illegible ? "?" : "—")}</span>
+              </div>
+            ) : (
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={15}
+                value={h.strokes ?? ""}
+                aria-label={`Hole ${h.holeNumber} strokes`}
+                placeholder={h.illegible ? "?" : ""}
+                onFocus={() => setActiveIdx(idx)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setActiveIdx(idx);
+                  update(idx, {
+                    strokes: v === "" ? null : Math.max(1, Math.min(15, Number(v))),
+                    illegible: v === "" ? h.illegible : false,
+                  });
+                }}
+                className={cn(
+                  "number-mono mt-1 h-10 w-full min-w-0 px-1 text-center text-base font-semibold sm:h-11 sm:text-lg",
+                  confColor,
+                  safeActiveIdx === idx && "border-primary/70 ring-2 ring-primary/40",
+                )}
+              />
+            )}
             {overPar != null && (
               <div
                 className={cn(
@@ -366,6 +375,51 @@ const REVIEW_SCORE_DELTAS = [
   { label: "+1", delta: 1 },
   { label: "+2", delta: 2 },
 ];
+
+function ScorecardMark({ overPar }: { overPar: number | null }) {
+  if (overPar == null || overPar === 0) return null;
+  const isCircle = overPar < 0;
+  const isDouble = overPar <= -2 || overPar >= 2;
+  const shape = isCircle ? "rounded-full" : "rounded-[4px]";
+  const tone =
+    overPar < 0
+      ? "border-primary/85"
+      : overPar === 1
+        ? "border-amber-400/85"
+        : "border-destructive/80";
+
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 border-2 sm:h-9 sm:w-9",
+          shape,
+          tone,
+        )}
+      />
+      {isDouble && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 border sm:h-7 sm:w-7",
+            shape,
+            tone,
+          )}
+        />
+      )}
+    </>
+  );
+}
+
+function scoreTerm(overPar: number) {
+  if (overPar <= -2) return "eagle or better";
+  if (overPar === -1) return "birdie";
+  if (overPar === 0) return "par";
+  if (overPar === 1) return "bogey";
+  if (overPar === 2) return "double bogey";
+  return "triple bogey or worse";
+}
 
 function confidenceStatus(hole: GridHole): {
   label: string;

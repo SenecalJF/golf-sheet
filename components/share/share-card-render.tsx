@@ -229,7 +229,7 @@ export function renderShareCard({
         </div>
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 10 }}>
           <span>⛳</span>
-          <span style={{ fontWeight: 700, color: colors.text }}>Golf Sheet</span>
+          <span style={{ fontWeight: 700, color: colors.text }}>Golf Clubhouse</span>
         </div>
       </div>
     </div>

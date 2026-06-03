@@ -4,6 +4,7 @@ import { APIError } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/db";
+import { sendPasswordResetEmail } from "@/lib/email";
 
 const inviteCodePlugin = {
   id: "signup-invite-code",
@@ -63,6 +64,15 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
     maxPasswordLength: 128,
+    resetPasswordTokenExpiresIn: 60 * 60,
+    revokeSessionsOnPasswordReset: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl: url,
+      });
+    },
   },
   user: {
     additionalFields: {

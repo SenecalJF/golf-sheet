@@ -35,12 +35,10 @@ export function RoundShareButton({
 
     const overParText =
       overPar === 0 ? "even par" : overPar > 0 ? `+${overPar}` : `${overPar}`;
-    const shareTitle = courseName;
-    const shareText = `${totalStrokes} (${overParText}) at ${courseName}`;
-    const fileName = `golf-sheet-${slug(courseName)}-${totalStrokes}.png`;
+    const downloadFileName = `golf-sheet-${slug(courseName)}-${totalStrokes}.jpg`;
 
     try {
-      const res = await fetch(`/api/share/round/${roundId}?size=story`, {
+      const res = await fetch(`/api/share/round/${roundId}?size=square`, {
         method: "GET",
         signal: controller.signal,
       });
@@ -48,7 +46,8 @@ export function RoundShareButton({
         throw new Error(`Image request failed (${res.status})`);
       }
       const blob = await res.blob();
-      const file = new File([blob], fileName, { type: "image/png" });
+      const shareBlob = await toShareableJpeg(blob);
+      const file = new File([shareBlob], downloadFileName, { type: shareBlob.type });
 
       const nav = typeof navigator === "undefined" ? null : navigator;
       const canShareFiles =
@@ -56,11 +55,7 @@ export function RoundShareButton({
 
       if (canShareFiles && typeof nav.share === "function") {
         try {
-          await nav.share({
-            files: [file],
-            title: shareTitle,
-            text: shareText,
-          });
+          await nav.share({ files: [file] });
           // Success path: native share sheet handled it. No toast — the OS UI
           // is feedback enough.
           return;
@@ -71,8 +66,8 @@ export function RoundShareButton({
         }
       }
 
-      downloadBlob(blob, fileName);
-      toast.success("Image saved — attach it in Insta Story, Snap, etc.");
+      downloadBlob(shareBlob, downloadFileName);
+      toast.success(`Image saved — ${totalStrokes} (${overParText}) at ${courseName}`);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
       const message = e instanceof Error ? e.message : "Failed";
@@ -93,6 +88,61 @@ export function RoundShareButton({
       {busy ? "Building image…" : "Share"}
     </Button>
   );
+}
+
+async function toShareableJpeg(blob: Blob): Promise<Blob> {
+  const img = await loadBlobImage(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return blob;
+
+  ctx.fillStyle = "#07170f";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0);
+
+  for (const quality of [0.9, 0.84, 0.78, 0.72]) {
+    const jpeg = await canvasToBlob(canvas, "image/jpeg", quality);
+    if (jpeg.size <= 950 * 1024) return jpeg;
+  }
+
+  return canvasToBlob(canvas, "image/jpeg", 0.66);
+}
+
+function loadBlobImage(blob: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Generated image could not be prepared for sharing"));
+    };
+    img.src = url;
+  });
+}
+
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality: number,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Generated image could not be compressed"));
+      },
+      type,
+      quality,
+    );
+  });
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
