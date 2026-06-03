@@ -31,15 +31,32 @@ export function CourseCombobox({
   onChange,
   placeholder = "Choose a course...",
   disabled,
+  includeAllOption = false,
+  allOptionLabel = "All courses",
+  allOptionDescription = "Every course",
+  triggerClassName,
 }: {
   courses: CourseComboboxItem[];
   value: string;
   onChange: (id: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  includeAllOption?: boolean;
+  allOptionLabel?: string;
+  allOptionDescription?: string;
+  triggerClassName?: string;
 }) {
   const [open, setOpen] = React.useState(false);
-  const selected = courses.find((c) => c.id === value);
+  const options = includeAllOption
+    ? [{ id: "all", name: allOptionLabel, city: allOptionDescription }, ...courses]
+    : courses;
+  const selected = options.find((c) => c.id === value);
+  const selectedLabel =
+    selected == null
+      ? placeholder
+      : selected.id === "all"
+        ? selected.name
+        : `${selected.name} — ${selected.city}`;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,13 +66,12 @@ export function CourseCombobox({
           buttonVariants({ variant: "outline" }),
           "mt-1 h-9 w-full justify-between font-normal",
           !selected && "text-muted-foreground",
+          triggerClassName,
         )}
       >
         <span className="flex min-w-0 items-center gap-2">
           <Search className="h-4 w-4 shrink-0 opacity-60" />
-          <span className="truncate">
-            {selected ? `${selected.name} — ${selected.city}` : placeholder}
-          </span>
+          <span className="truncate">{selectedLabel}</span>
         </span>
         <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-60" />
       </PopoverTrigger>
@@ -64,7 +80,7 @@ export function CourseCombobox({
           <CommandInput placeholder="Search course or city..." autoFocus />
           <CommandList>
             <CommandEmpty>No course found.</CommandEmpty>
-            {courses.map((c) => (
+            {options.map((c) => (
               <CommandItem
                 key={c.id}
                 value={`${c.name} ${c.city}`}
