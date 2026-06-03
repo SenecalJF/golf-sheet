@@ -94,6 +94,87 @@ export function holeHeatmap(rounds: RoundFull[]): HoleHeatmapCell[] {
     .sort((a, b) => a.holeNumber - b.holeNumber);
 }
 
+export type HoleHistoryEntry = {
+  roundId: string;
+  date: string;
+  course: string;
+  teeName: string | null;
+  holeCount: number;
+  strokes: number;
+  par: number;
+  vsPar: number;
+};
+
+export type HoleHistoryHole = {
+  holeNumber: number;
+  par: number;
+  rounds: number;
+  avgStrokes: number;
+  avgVsPar: number;
+  bestStrokes: number;
+  bestVsPar: number;
+  worstStrokes: number;
+  worstVsPar: number;
+  entries: HoleHistoryEntry[];
+};
+
+export function buildHoleHistory(rounds: RoundFull[]): HoleHistoryHole[] {
+  const buckets = new Map<number, HoleHistoryEntry[]>();
+
+  for (const r of rounds) {
+    const date = r.date.toISOString().slice(0, 10);
+    for (const h of r.holes) {
+      const entry: HoleHistoryEntry = {
+        roundId: r.id,
+        date,
+        course: r.course.name,
+        teeName: r.tee?.name ?? null,
+        holeCount: r.holeCount,
+        strokes: h.strokes,
+        par: h.par,
+        vsPar: h.strokes - h.par,
+      };
+      buckets.set(h.holeNumber, [...(buckets.get(h.holeNumber) ?? []), entry]);
+    }
+  }
+
+  return [...buckets.entries()]
+    .map(([holeNumber, rawEntries]) => {
+      const entries = [...rawEntries].sort(
+        (a, b) => a.date.localeCompare(b.date) || a.roundId.localeCompare(b.roundId),
+      );
+      const strokes = entries.map((entry) => entry.strokes);
+      const vsPars = entries.map((entry) => entry.vsPar);
+      const best = entries.reduce((current, entry) =>
+        entry.vsPar < current.vsPar ||
+        (entry.vsPar === current.vsPar && entry.strokes < current.strokes)
+          ? entry
+          : current,
+      );
+      const worst = entries.reduce((current, entry) =>
+        entry.vsPar > current.vsPar ||
+        (entry.vsPar === current.vsPar && entry.strokes > current.strokes)
+          ? entry
+          : current,
+      );
+      const latest = entries[entries.length - 1];
+
+      return {
+        holeNumber,
+        par: latest.par,
+        rounds: entries.length,
+        avgStrokes: average(strokes) ?? 0,
+        avgVsPar: average(vsPars) ?? 0,
+        bestStrokes: best.strokes,
+        bestVsPar: best.vsPar,
+        worstStrokes: worst.strokes,
+        worstVsPar: worst.vsPar,
+        entries,
+      };
+    })
+    .sort((a, b) => a.holeNumber - b.holeNumber);
+}
+
 export type NineSide = "front" | "back";
 
 export type NineSideStat = {

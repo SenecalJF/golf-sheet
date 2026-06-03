@@ -10,14 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BarChart3, Flame, GitCompareArrows, Sparkles, TrendingUp } from "lucide-react";
+import { BarChart3, Flame, GitCompareArrows, History, Sparkles, TrendingUp } from "lucide-react";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { ParTypeChart } from "@/components/analytics/par-type-chart";
 import { HoleHeatmap } from "@/components/analytics/hole-heatmap";
+import { HoleHistoryPanel } from "@/components/analytics/hole-history-panel";
 import { AiInsightsPanel } from "@/components/analytics/ai-insights-panel";
 import { FrontBackPanel } from "@/components/analytics/front-back-panel";
 import {
   buildTrend,
+  buildHoleHistory,
   parTypeBreakdown,
   holeHeatmap,
   frontBackBreakdown,
@@ -51,7 +53,10 @@ export function AnalyticsView({
   const trend = buildTrend(filtered);
   const parStats = parTypeBreakdown(filtered);
   const heatmap = holeHeatmap(filtered);
+  const holeHistory = courseId === "all" ? [] : buildHoleHistory(filtered);
   const frontBack = frontBackBreakdown(filtered);
+  const selectedCourse =
+    courseId === "all" ? null : courses.find((c) => c.id === courseId) ?? null;
 
   const scoring = filtered.map((r) => ({
     id: r.id,
@@ -147,6 +152,9 @@ export function AnalyticsView({
             <TabsTrigger value="heat">
               <Flame className="mr-1 h-4 w-4" /> Hole heatmap
             </TabsTrigger>
+            <TabsTrigger value="hole-history">
+              <History className="mr-1 h-4 w-4" /> Hole history
+            </TabsTrigger>
             <TabsTrigger value="ai">
               <Sparkles className="mr-1 h-4 w-4" /> AI insights
             </TabsTrigger>
@@ -184,6 +192,17 @@ export function AnalyticsView({
               Per-hole average vs par
             </h3>
             <HoleHeatmap cells={heatmap} />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="hole-history" className="mt-6">
+          <Card className="p-6">
+            <h3 className="mb-4 text-base font-semibold tracking-tight">Hole history</h3>
+            <HoleHistoryPanel
+              holes={holeHistory}
+              courseSelected={courseId !== "all"}
+              courseName={selectedCourse?.name ?? null}
+            />
           </Card>
         </TabsContent>
 
