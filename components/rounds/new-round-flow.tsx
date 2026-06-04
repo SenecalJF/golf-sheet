@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { HoleScoreGrid, type GridHole } from "@/components/rounds/hole-score-grid";
 import { CourseCombobox } from "@/components/rounds/course-combobox";
+import { ExcludeFromStatsToggle } from "@/components/rounds/exclude-from-stats-toggle";
 import { parsePars } from "@/lib/types";
 import type { ExtractedScorecard } from "@/lib/types";
 import { resizeImage } from "@/lib/resize-image";
@@ -115,6 +116,7 @@ type RoundDraft = {
   nineType: "front" | "back" | null;
   holes: GridHole[];
   notes: string;
+  excludeFromStats: boolean;
   sourceImages: string[];
   extractionModel: string | null;
   extractionNotes: string | null;
@@ -171,6 +173,7 @@ export function NewRoundFlow({
     ),
   );
   const [notes, setNotes] = React.useState("");
+  const [excludeFromStats, setExcludeFromStats] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [sourceImages, setSourceImages] = React.useState<string[]>([]);
   const [extracting, setExtracting] = React.useState(false);
@@ -221,6 +224,7 @@ export function NewRoundFlow({
       nineType,
       holes,
       notes,
+      excludeFromStats,
       sourceImages,
       extractionModel,
       extractionNotes,
@@ -237,6 +241,7 @@ export function NewRoundFlow({
     date,
     detectedTees,
     detectedPlayers,
+    excludeFromStats,
     extractionModel,
     extractionNotes,
     holeCount,
@@ -520,6 +525,7 @@ export function NewRoundFlow({
           holeCount,
           nineType: holeCount === 9 ? nineType : null,
           notes: notes || null,
+          excludeFromStats,
           pcc: 0,
           sourceImage: sourceImages[0] ?? null,
           extractionModel,
@@ -588,6 +594,7 @@ export function NewRoundFlow({
     setNineType(draft.nineType);
     setHoles(draft.holes);
     setNotes(draft.notes);
+    setExcludeFromStats(draft.excludeFromStats);
     setSourceImages(draft.sourceImages);
     setExtractionModel(draft.extractionModel);
     setExtractionNotes(draft.extractionNotes);
@@ -733,6 +740,11 @@ export function NewRoundFlow({
             nineType={nineType}
             setNineType={updateNineType}
             hideTeeDropdown={mode === "ai" && detectedTees.length > 0}
+          />
+
+          <ExcludeFromStatsToggle
+            value={excludeFromStats}
+            onChange={setExcludeFromStats}
           />
 
           {mode === "ai" && (
@@ -1568,6 +1580,7 @@ function parseRoundDraft(raw: string | null): RoundDraft | null {
       nineType: value.nineType === "front" || value.nineType === "back" ? value.nineType : null,
       holes,
       notes: typeof value.notes === "string" ? value.notes : "",
+      excludeFromStats: value.excludeFromStats === true,
       sourceImages: Array.isArray(value.sourceImages)
         ? value.sourceImages.filter((item): item is string => typeof item === "string")
         : [],

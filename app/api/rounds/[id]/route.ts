@@ -109,6 +109,7 @@ export async function PATCH(
       totalStrokes: summary.totalStrokes,
       totalPar: summary.totalPar,
       scoreDiff: summary.scoreDiff,
+      excludeFromStats: d.excludeFromStats ?? false,
       sourceImage: existing.sourceImage,
       extractionModel: existing.extractionModel,
       holes: {

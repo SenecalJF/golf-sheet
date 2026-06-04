@@ -61,6 +61,7 @@ export const RoundInputSchema = z.object({
   pcc: z.number().min(-1).max(3).default(0),
   sourceImage: z.string().nullable().optional(),
   extractionModel: z.string().nullable().optional(),
+  excludeFromStats: z.boolean().optional(),
   holes: z.array(HoleInputSchema).min(9).max(18),
 });
 

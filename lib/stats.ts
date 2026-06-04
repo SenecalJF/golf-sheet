@@ -2,6 +2,15 @@ import type { Round, HoleScore, Course, Tee } from "@prisma/client";
 
 export type RoundFull = Round & { course: Course; tee: Tee | null; holes: HoleScore[] };
 
+/**
+ * Rounds that should feed performance stats + handicap. Team formats (scramble,
+ * Vegas, best-ball) are flagged `excludeFromStats` and are still saved + shown,
+ * but must not move any performance number.
+ */
+export function countedRounds<T extends { excludeFromStats: boolean }>(rounds: T[]): T[] {
+  return rounds.filter((r) => !r.excludeFromStats);
+}
+
 export type TrendPoint = {
   date: string;
   roundId: string;
@@ -354,17 +363,30 @@ export function perCourseSummary(rounds: RoundFull[]): CourseSummary[] {
   }
   return Object.values(grouped).map((rs) => {
     const r0 = rs[0];
+    // Activity counts include every round; scoring (best/avg) only counted ones.
+    const counted = countedRounds(rs);
     return {
       courseId: r0.courseId,
       courseName: r0.course.name,
       city: r0.course.city,
       roundsPlayed: rs.length,
       byFormat: {
-        18: summarizeScoreFormat(rs, 18),
-        9: summarizeScoreFormat(rs, 9),
+        18: withTotalRounds(summarizeScoreFormat(counted, 18), rs, 18),
+        9: withTotalRounds(summarizeScoreFormat(counted, 9), rs, 9),
       },
     };
   });
+}
+
+function withTotalRounds(
+  summary: ScoreFormatSummary,
+  allRounds: ScoreFormatRound[],
+  holeCount: 9 | 18,
+): ScoreFormatSummary {
+  return {
+    ...summary,
+    rounds: allRounds.filter((round) => round.holeCount === holeCount).length,
+  };
 }
 
 export function summarizeScoreFormat(

@@ -97,6 +97,14 @@ export default async function RoundsPage({
                           <span>{format(r.date, "MMM d, yyyy")}</span>
                           <span aria-hidden="true">·</span>
                           <span>{r.holeCount}H</span>
+                          {r.excludeFromStats && (
+                            <Badge
+                              variant="outline"
+                              className="border-border/60 px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
+                            >
+                              Casual
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>

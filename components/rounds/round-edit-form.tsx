@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { HoleScoreGrid, type GridHole } from "@/components/rounds/hole-score-grid";
+import { ExcludeFromStatsToggle } from "@/components/rounds/exclude-from-stats-toggle";
 import { parsePars } from "@/lib/types";
 
 type CourseWithTees = {
@@ -46,6 +47,7 @@ export type EditableRound = {
   pcc: number;
   sourceImage: string | null;
   extractionModel: string | null;
+  excludeFromStats: boolean;
   holes: GridHole[];
 };
 
@@ -68,6 +70,7 @@ export function RoundEditForm({
   );
   const [holes, setHoles] = React.useState<GridHole[]>(round.holes);
   const [notes, setNotes] = React.useState(round.notes ?? "");
+  const [excludeFromStats, setExcludeFromStats] = React.useState(round.excludeFromStats);
   const [submitting, setSubmitting] = React.useState(false);
 
   const selectedCourse = courses.find((course) => course.id === courseId);
@@ -134,6 +137,7 @@ export function RoundEditForm({
           pcc: round.pcc,
           sourceImage: round.sourceImage,
           extractionModel: round.extractionModel,
+          excludeFromStats,
           holes: holes.map((hole) => ({
             holeNumber: hole.holeNumber,
             par: hole.par,
@@ -299,6 +303,8 @@ export function RoundEditForm({
             rows={3}
           />
         </div>
+
+        <ExcludeFromStatsToggle value={excludeFromStats} onChange={setExcludeFromStats} />
 
         <div className="flex items-center justify-between">
           <Button asChild variant="ghost">

@@ -4,6 +4,7 @@ import type { User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
 import {
+  countedRounds,
   frontBackBreakdown,
   summarizeScoreFormat,
   type RoundFull,
@@ -376,16 +377,22 @@ type StatsUser = Pick<User, "id" | "name" | "image"> & {
 
 function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPlayerStats {
   const year = new Date().getFullYear();
-  const chronologicalRounds = [...rounds].sort((a, b) => a.date.getTime() - b.date.getTime());
   const currentYearRounds = rounds.filter((round) => round.date.getFullYear() === year);
   const roundsThisYear = currentYearRounds.length;
-  const scores = rounds.map((round) => round.totalStrokes);
-  const vsPars = rounds.map(normalizeRoundVsPar);
-  const diffs = rounds
+
+  // Handicap + performance stats ignore excluded (team/scramble) rounds;
+  // activity (counts, calendars, most-played) keeps every round.
+  const counted = countedRounds(rounds);
+  const countedChronological = [...counted].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const countedCurrentYear = counted.filter((round) => round.date.getFullYear() === year);
+
+  const scores = counted.map((round) => round.totalStrokes);
+  const vsPars = counted.map(normalizeRoundVsPar);
+  const diffs = counted
     .map((round) => round.scoreDiff)
     .filter((diff): diff is number => diff != null);
-  const { index } = buildDifferentialsAndIndex(rounds.map(toScoringRound));
-  const frontBack = frontBackBreakdown(rounds);
+  const { index } = buildDifferentialsAndIndex(counted.map(toScoringRound));
+  const frontBack = frontBackBreakdown(counted);
 
   return {
     user: {
@@ -413,15 +420,15 @@ function buildPublicPlayerStats(user: StatsUser, rounds: RoundFull[]): PublicPla
     bestScore: scores.length > 0 ? Math.min(...scores) : null,
     bestDifferential: diffs.length > 0 ? Math.min(...diffs) : null,
     scoreByFormat: {
-      18: summarizeScoreFormat(rounds, 18),
-      9: summarizeScoreFormat(rounds, 9),
+      18: summarizeScoreFormat(counted, 18),
+      9: summarizeScoreFormat(counted, 9),
     },
     leaderboard: {
-      "all-time": buildLeaderboardStats(rounds),
-      "this-year": buildLeaderboardStats(currentYearRounds),
-      "last-5": buildLeaderboardStats(chronologicalRounds.slice(-5)),
+      "all-time": buildLeaderboardStats(counted),
+      "this-year": buildLeaderboardStats(countedCurrentYear),
+      "last-5": buildLeaderboardStats(countedChronological.slice(-5)),
     },
-    recentTrend: buildRecentTrend(rounds),
+    recentTrend: buildRecentTrend(counted),
     mostPlayedCourses: mostPlayedCourses(rounds),
     recentRounds: buildRecentRounds(rounds),
     roundCalendars: buildRoundCalendars(rounds, year),

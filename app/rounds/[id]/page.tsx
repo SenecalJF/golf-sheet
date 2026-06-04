@@ -43,6 +43,14 @@ export default async function RoundDetail({
               </div>
               <h1 className="text-3xl font-semibold tracking-tight">{r.course.name}</h1>
             </div>
+            {r.excludeFromStats && (
+              <Badge
+                variant="outline"
+                className="mt-2 border-border/60 text-muted-foreground"
+              >
+                Casual round — excluded from stats &amp; handicap
+              </Badge>
+            )}
             <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
               {!isOwner && (
                 <>

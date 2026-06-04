@@ -95,6 +95,7 @@ export default async function PendingRoundPage({
     pcc: pending.pcc,
     sourceImage: pending.sourceImage,
     extractionModel: pending.extractionModel,
+    excludeFromStats: pending.excludeFromStats,
     scorecardPlayerName: pending.scorecardPlayerName,
     scorecardRowLabel: pending.scorecardRowLabel,
     rowConfidence: pending.rowConfidence,

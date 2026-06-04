@@ -8,7 +8,7 @@ import { TeeEditor } from "@/components/courses/tee-editor";
 import { format } from "date-fns";
 import { requireUser } from "@/lib/auth-utils";
 import { getSharedCourseForUser } from "@/lib/data";
-import { summarizeScoreFormat, type ScoreFormatSummary } from "@/lib/stats";
+import { countedRounds, summarizeScoreFormat, type ScoreFormatSummary } from "@/lib/stats";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +23,9 @@ export default async function CourseDetail({
   if (!course) notFound();
 
   const totalRounds = course.rounds.length;
-  const eighteenHoleStats = summarizeScoreFormat(course.rounds, 18);
-  const nineHoleStats = summarizeScoreFormat(course.rounds, 9);
+  const statsRounds = countedRounds(course.rounds);
+  const eighteenHoleStats = summarizeScoreFormat(statsRounds, 18);
+  const nineHoleStats = summarizeScoreFormat(statsRounds, 9);
 
   return (
     <div className="space-y-8">
@@ -86,8 +87,14 @@ export default async function CourseDetail({
                       {r.totalStrokes - r.totalPar} vs par
                     </div>
                   </div>
-                  {r.scoreDiff != null && (
-                    <Badge variant="outline">Diff {r.scoreDiff.toFixed(1)}</Badge>
+                  {r.excludeFromStats ? (
+                    <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                      Casual
+                    </Badge>
+                  ) : (
+                    r.scoreDiff != null && (
+                      <Badge variant="outline">Diff {r.scoreDiff.toFixed(1)}</Badge>
+                    )
                   )}
                 </div>
               </li>

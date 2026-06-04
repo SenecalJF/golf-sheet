@@ -21,6 +21,7 @@ import { CourseCombobox } from "@/components/rounds/course-combobox";
 import {
   buildTrend,
   buildHoleHistory,
+  countedRounds,
   parTypeBreakdown,
   holeHeatmap,
   frontBackBreakdown,
@@ -42,8 +43,11 @@ export function AnalyticsView({
 }) {
   const [courseId, setCourseId] = React.useState<string>("all");
   const [holeCountFilter, setHoleCountFilter] = React.useState<"all" | "18" | "9">("all");
+  const statsRounds = countedRounds(rounds);
   const courseFiltered =
-    courseId === "all" ? rounds : rounds.filter((r) => r.courseId === courseId);
+    courseId === "all"
+      ? statsRounds
+      : statsRounds.filter((r) => r.courseId === courseId);
   const filtered =
     holeCountFilter === "all"
       ? courseFiltered

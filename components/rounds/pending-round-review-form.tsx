@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { HoleScoreGrid, type GridHole } from "@/components/rounds/hole-score-grid";
+import { ExcludeFromStatsToggle } from "@/components/rounds/exclude-from-stats-toggle";
 import { parsePars } from "@/lib/types";
 
 type CourseWithTees = {
@@ -48,6 +49,7 @@ export type ReviewablePendingRound = {
   pcc: number;
   sourceImage: string | null;
   extractionModel: string | null;
+  excludeFromStats: boolean;
   scorecardPlayerName: string | null;
   scorecardRowLabel: string | null;
   rowConfidence: number | null;
@@ -74,6 +76,7 @@ export function PendingRoundReviewForm({
   );
   const [holes, setHoles] = React.useState<GridHole[]>(pending.holes);
   const [notes, setNotes] = React.useState(pending.notes ?? "");
+  const [excludeFromStats, setExcludeFromStats] = React.useState(pending.excludeFromStats);
   const [submitting, setSubmitting] = React.useState<"accept" | "reject" | null>(null);
 
   const selectedCourse = courses.find((course) => course.id === courseId);
@@ -142,6 +145,7 @@ export function PendingRoundReviewForm({
           pcc: pending.pcc,
           sourceImage: pending.sourceImage,
           extractionModel: pending.extractionModel,
+          excludeFromStats,
           holes: holes.map((hole) => ({
             holeNumber: hole.holeNumber,
             par: hole.par,
@@ -358,6 +362,8 @@ export function PendingRoundReviewForm({
             rows={3}
           />
         </div>
+
+        <ExcludeFromStatsToggle value={excludeFromStats} onChange={setExcludeFromStats} />
 
         <div className="flex items-center justify-between">
           <Button asChild variant="ghost">

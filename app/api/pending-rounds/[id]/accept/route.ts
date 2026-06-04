@@ -68,6 +68,7 @@ export async function POST(
           scoreDiff: summary.scoreDiff,
           sourceImage: d.sourceImage ?? null,
           extractionModel: d.extractionModel ?? null,
+          excludeFromStats: d.excludeFromStats ?? false,
           holes: { create: holeCreateRows(d.holes) },
         },
         include: { holes: true, course: true, tee: true },

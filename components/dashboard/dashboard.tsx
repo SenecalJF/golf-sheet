@@ -4,13 +4,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
-import { buildTrend, perCourseSummary, parTypeBreakdown } from "@/lib/stats";
+import { buildTrend, countedRounds, perCourseSummary, parTypeBreakdown } from "@/lib/stats";
 import type { RoundFull } from "@/lib/stats";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { format } from "date-fns";
 
 export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
-  const scoringRounds = rounds.map((r) => ({
+  const counted = countedRounds(rounds);
+  const scoringRounds = counted.map((r) => ({
     id: r.id,
     date: r.date,
     holeCount: r.holeCount as 9 | 18,
@@ -28,7 +29,7 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
   }));
 
   const { diffs, index } = buildDifferentialsAndIndex(scoringRounds);
-  const trend = buildTrend(rounds);
+  const trend = buildTrend(counted);
   const latest = rounds[0];
   const previousIndex = (() => {
     if (diffs.length <= 1) return null;
@@ -39,7 +40,7 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
   })();
   const delta = previousIndex != null && index != null ? Math.round((index - previousIndex) * 10) / 10 : null;
   const courses = perCourseSummary(rounds).sort((a, b) => b.roundsPlayed - a.roundsPlayed).slice(0, 5);
-  const parStats = parTypeBreakdown(rounds);
+  const parStats = parTypeBreakdown(counted);
 
   const latestOverPar = latest.totalStrokes - latest.totalPar;
 

@@ -30,7 +30,9 @@ export async function POST(req: Request) {
   const { courseId } = await req.json().catch(() => ({ courseId: null }));
 
   const rounds: RoundFull[] = await prisma.round.findMany({
-    where: courseId ? { userId: user.id, courseId } : { userId: user.id },
+    where: courseId
+      ? { userId: user.id, courseId, excludeFromStats: false }
+      : { userId: user.id, excludeFromStats: false },
     include: { course: true, tee: true, holes: { orderBy: { holeNumber: "asc" } } },
     orderBy: { date: "desc" },
   });

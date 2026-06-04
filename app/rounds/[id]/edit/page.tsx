@@ -57,6 +57,7 @@ export default async function EditRoundPage({
           pcc: round.pcc,
           sourceImage: round.sourceImage,
           extractionModel: round.extractionModel,
+          excludeFromStats: round.excludeFromStats,
           holes: round.holes.map((hole) => ({
             holeNumber: hole.holeNumber,
             par: hole.par,
