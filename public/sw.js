@@ -6,6 +6,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+const NOTIFICATION_CLICK_CACHE = "golf-notification-click-v1";
+const NOTIFICATION_CLICK_REQUEST = "/__golf_notification_click__";
+
 self.addEventListener("push", (event) => {
   let data = {};
   if (event.data) {
@@ -45,6 +48,7 @@ self.addEventListener("notificationclick", (event) => {
 
 async function openNotificationTarget(url) {
   const targetUrl = new URL(url);
+  await storeNotificationTarget(targetUrl.href);
   const clientList = await self.clients.matchAll({
     type: "window",
     includeUncontrolled: true,
@@ -54,9 +58,35 @@ async function openNotificationTarget(url) {
     const clientUrl = new URL(client.url);
     if (clientUrl.origin !== targetUrl.origin || !("navigate" in client)) continue;
 
-    const navigatedClient = await client.navigate(targetUrl.href);
+    client.postMessage({
+      type: "GOLF_NOTIFICATION_CLICK",
+      url: targetUrl.href,
+    });
+
+    const navigatedClient = await client.navigate(targetUrl.href).catch(() => null);
     return (navigatedClient || client).focus();
   }
 
   return self.clients.openWindow(targetUrl.href);
+}
+
+async function storeNotificationTarget(url) {
+  if (!self.caches) return;
+
+  const cache = await self.caches.open(NOTIFICATION_CLICK_CACHE);
+  await cache.put(
+    NOTIFICATION_CLICK_REQUEST,
+    new Response(
+      JSON.stringify({
+        url,
+        createdAt: Date.now(),
+      }),
+      {
+        headers: {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+        },
+      },
+    ),
+  );
 }

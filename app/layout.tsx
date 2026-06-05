@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DesktopNav, MobileTopBar } from "@/components/shared/nav";
+import { NotificationClickHandler } from "@/components/notifications/notification-click-handler";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getCurrentUser } from "@/lib/auth-utils";
@@ -95,6 +96,7 @@ export default async function RootLayout({
               </main>
             </div>
           </div>
+          <NotificationClickHandler />
           <Toaster richColors position="top-right" theme="dark" />
         </TooltipProvider>
       </body>
