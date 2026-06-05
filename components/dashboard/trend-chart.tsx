@@ -16,14 +16,16 @@ import { format, parseISO } from "date-fns";
 export function TrendChart({
   trend,
   handicap,
+  emptyMessage = "Play your first round to see a trend.",
 }: {
   trend: TrendPoint[];
   handicap: number | null;
+  emptyMessage?: string;
 }) {
   if (trend.length === 0) {
     return (
       <div className="grid h-64 place-items-center text-sm text-muted-foreground">
-        Play your first round to see a trend.
+        {emptyMessage}
       </div>
     );
   }

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
 import { buildTrend, countedRounds, perCourseSummary, parTypeBreakdown } from "@/lib/stats";
 import type { RoundFull } from "@/lib/stats";
-import { TrendChart } from "@/components/dashboard/trend-chart";
+import { DashboardTrendCard } from "@/components/dashboard/dashboard-trend-card";
 import { format } from "date-fns";
 
 export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
@@ -29,7 +29,8 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
   }));
 
   const { diffs, index } = buildDifferentialsAndIndex(scoringRounds);
-  const trend = buildTrend(counted);
+  const eighteenHoleTrend = buildTrend(counted.filter((r) => r.holeCount === 18));
+  const nineHoleTrend = buildTrend(counted.filter((r) => r.holeCount === 9));
   const latest = rounds[0];
   const previousIndex = (() => {
     if (diffs.length <= 1) return null;
@@ -167,25 +168,11 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
         </Card>
       </div>
 
-      {/* Trend chart */}
-      <Card className="p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-              <TrendingUp className="h-3.5 w-3.5" /> Score trend
-            </div>
-            <h3 className="mt-1 text-lg font-semibold tracking-tight">
-              Last {trend.length} rounds
-            </h3>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/analytics">
-              Open analytics <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </Button>
-        </div>
-        <TrendChart trend={trend} handicap={index} />
-      </Card>
+      <DashboardTrendCard
+        eighteenHoleTrend={eighteenHoleTrend}
+        nineHoleTrend={nineHoleTrend}
+        handicap={index}
+      />
 
       {/* Courses played */}
       <Card className="p-6">
