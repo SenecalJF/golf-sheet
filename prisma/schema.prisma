@@ -59,6 +59,8 @@ model User {
   accounts                  Account[]
   rounds                    Round[]
   secrets                   UserSecret[]
+  notifications             Notification[]
+  pushSubscriptions         PushSubscription[]
   pendingRoundsSent         PendingRound[]          @relation("PendingRoundSender")
   pendingRoundsReceived     PendingRound[]          @relation("PendingRoundRecipient")
   tournamentParticipants    TournamentParticipant[]
@@ -130,6 +132,45 @@ model UserSecret {
 
   @@unique([userId, provider])
   @@index([userId])
+}
+
+enum NotificationType {
+  ROUND_ASSIGNED
+  ROUND_PUBLISHED
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String
+  type        NotificationType
+  title       String
+  body        String
+  targetUrl   String
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt, createdAt])
+  @@index([recipientId, createdAt])
+  @@index([type])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, enabled])
 }
 
 model Round {

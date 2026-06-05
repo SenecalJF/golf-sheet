@@ -15,6 +15,7 @@ import {
   Users,
   Trophy,
   Inbox,
+  Bell,
 } from "lucide-react";
 import {
   Sheet,
@@ -34,7 +35,7 @@ type NavItem = {
   match?: (pathname: string) => boolean;
 };
 
-function buildItems(pendingInboxCount: number): NavItem[] {
+function buildItems(pendingInboxCount: number, unreadNotificationCount: number): NavItem[] {
   return [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     {
@@ -50,6 +51,13 @@ function buildItems(pendingInboxCount: number): NavItem[] {
       icon: Inbox,
       badge: pendingInboxCount,
       match: (p) => p.startsWith("/rounds/pending"),
+    },
+    {
+      href: "/notifications",
+      label: "Notifications",
+      icon: Bell,
+      badge: unreadNotificationCount,
+      match: (p) => p.startsWith("/notifications"),
     },
     { href: "/rounds/new", label: "New round", icon: Camera, accent: true },
     { href: "/courses", label: "Courses", icon: Flag },
@@ -125,12 +133,14 @@ function Brand({ subtitle = true }: { subtitle?: boolean }) {
 
 export function DesktopNav({
   pendingInboxCount = 0,
+  unreadNotificationCount = 0,
 }: {
   pendingInboxCount?: number;
+  unreadNotificationCount?: number;
 }) {
   const pathname = usePathname();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
-  const items = buildItems(pendingInboxCount);
+  const items = buildItems(pendingInboxCount, unreadNotificationCount);
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border/60 bg-sidebar/60 backdrop-blur-xl lg:block">
@@ -162,50 +172,69 @@ export function DesktopNav({
 
 export function MobileTopBar({
   pendingInboxCount = 0,
+  unreadNotificationCount = 0,
 }: {
   pendingInboxCount?: number;
+  unreadNotificationCount?: number;
 }) {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
-  const items = buildItems(pendingInboxCount);
+  const items = buildItems(pendingInboxCount, unreadNotificationCount);
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl lg:hidden">
       <Brand subtitle={false} />
       {!isAuthPage && (
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger
-            render={
-              <button
-                type="button"
-                aria-label="Open menu"
-                className="relative grid h-9 w-9 place-items-center rounded-lg border border-border/60 bg-secondary/60 text-foreground"
+        <div className="flex items-center gap-2">
+          <Link
+            href="/notifications"
+            aria-label="Notifications"
+            className="relative grid h-10 w-10 place-items-center rounded-lg border border-border/60 bg-secondary/60 text-foreground"
+          >
+            <Bell className="h-5 w-5" />
+            {unreadNotificationCount > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground shadow"
               >
-                <Menu className="h-5 w-5" />
-                {pendingInboxCount > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground shadow"
-                  >
-                    {pendingInboxCount > 99 ? "99+" : pendingInboxCount}
-                  </span>
-                )}
-              </button>
-            }
-          />
-          <SheetContent side="left" className="w-72 p-0">
-            <SheetHeader className="border-b border-border/60 p-4">
-              <SheetTitle className="text-left">
-                <Brand />
-              </SheetTitle>
-            </SheetHeader>
-            <div className="space-y-4 p-4">
-              <NavLinks items={items} onSelect={() => setOpen(false)} />
-              <SignOutButton />
-            </div>
-          </SheetContent>
-        </Sheet>
+                {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+              </span>
+            )}
+          </Link>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label="Open menu"
+                  className="relative grid h-10 w-10 place-items-center rounded-lg border border-border/60 bg-secondary/60 text-foreground"
+                >
+                  <Menu className="h-5 w-5" />
+                  {pendingInboxCount > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground shadow"
+                    >
+                      {pendingInboxCount > 99 ? "99+" : pendingInboxCount}
+                    </span>
+                  )}
+                </button>
+              }
+            />
+            <SheetContent side="left" className="w-72 p-0">
+              <SheetHeader className="border-b border-border/60 p-4">
+                <SheetTitle className="text-left">
+                  <Brand />
+                </SheetTitle>
+              </SheetHeader>
+              <div className="space-y-4 p-4">
+                <NavLinks items={items} onSelect={() => setOpen(false)} />
+                <SignOutButton />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       )}
     </header>
   );

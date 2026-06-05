@@ -5,7 +5,7 @@ import { DesktopNav, MobileTopBar } from "@/components/shared/nav";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getCurrentUser } from "@/lib/auth-utils";
-import { getPendingInboxCount } from "@/lib/data";
+import { getPendingInboxCount, getUnreadNotificationCount } from "@/lib/data";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,9 +52,12 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const user = await getCurrentUser();
-  const pendingInboxCount = user
-    ? await getPendingInboxCount(user.id).catch(() => 0)
-    : 0;
+  const [pendingInboxCount, unreadNotificationCount] = user
+    ? await Promise.all([
+        getPendingInboxCount(user.id).catch(() => 0),
+        getUnreadNotificationCount(user.id).catch(() => 0),
+      ])
+    : [0, 0];
   const hasAppShell = !!user;
 
   return (
@@ -66,9 +69,19 @@ export default async function RootLayout({
       <body className="min-h-full">
         <TooltipProvider delay={200}>
           <div className={hasAppShell ? "flex min-h-screen flex-col lg:flex-row" : "min-h-screen"}>
-            {hasAppShell && <DesktopNav pendingInboxCount={pendingInboxCount} />}
+            {hasAppShell && (
+              <DesktopNav
+                pendingInboxCount={pendingInboxCount}
+                unreadNotificationCount={unreadNotificationCount}
+              />
+            )}
             <div className={hasAppShell ? "flex min-h-screen flex-1 flex-col" : "min-h-screen"}>
-              {hasAppShell && <MobileTopBar pendingInboxCount={pendingInboxCount} />}
+              {hasAppShell && (
+                <MobileTopBar
+                  pendingInboxCount={pendingInboxCount}
+                  unreadNotificationCount={unreadNotificationCount}
+                />
+              )}
               <main className={hasAppShell ? "flex-1 overflow-x-hidden" : "min-h-screen overflow-x-hidden"}>
                 <div
                   className={

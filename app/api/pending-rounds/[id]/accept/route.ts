@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
+import type { Notification } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { isAuthResponse, requireApiUser } from "@/lib/auth-utils";
 import { RoundInputSchema } from "@/lib/types";
 import { holeCreateRows, summarizeRoundScore, validateRoundHoles } from "@/lib/round-scoring";
+import {
+  createRoundPublishedNotifications,
+  sendPushNotifications,
+} from "@/lib/notifications";
 
 export async function POST(
   req: Request,
@@ -50,8 +55,9 @@ export async function POST(
 
   const summary = summarizeRoundScore(d, tee, id);
   let round;
+  let notifications: Notification[] = [];
   try {
-    round = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const createdRound = await tx.round.create({
         data: {
           userId: user.id,
@@ -86,8 +92,16 @@ export async function POST(
         throw new Error("Pending round is already closed");
       }
 
-      return createdRound;
+      const createdNotifications = await createRoundPublishedNotifications(tx, {
+        actorId: user.id,
+        actorName: user.name,
+        round: createdRound,
+      });
+
+      return { round: createdRound, notifications: createdNotifications };
     });
+    round = result.round;
+    notifications = result.notifications;
   } catch (error) {
     if (error instanceof Error && error.message === "Pending round is already closed") {
       return NextResponse.json({ error: error.message }, { status: 409 });
@@ -95,5 +109,6 @@ export async function POST(
     throw error;
   }
 
+  await sendPushNotifications(notifications).catch(() => undefined);
   return NextResponse.json(round, { status: 201 });
 }

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PushNotificationSettings } from "@/components/settings/push-notification-settings";
 
 type KeyStatus = {
   configured: boolean;
@@ -184,6 +185,8 @@ export function AccountSettings({
           </div>
         </div>
       </Card>
+
+      <PushNotificationSettings />
 
       <Card className="p-6">
         <div className="flex items-center gap-3">

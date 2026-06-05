@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Notification } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { RoundCreateInputSchema } from "@/lib/types";
 import { holeCreateRows, summarizeRoundScore, validateRoundHoles } from "@/lib/round-scoring";
@@ -7,6 +8,12 @@ import {
   createOrUpdateLinkedTournamentScore,
   TournamentRoundLinkError,
 } from "@/lib/tournament-round-linking";
+import {
+  createNotifications,
+  createRoundPublishedNotifications,
+  formatRoundNotificationBody,
+  sendPushNotifications,
+} from "@/lib/notifications";
 
 export async function GET() {
   const user = await requireApiUser();
@@ -95,7 +102,8 @@ export async function POST(req: Request) {
   const summary = summarizeRoundScore(d, tee);
 
   try {
-    const round = await prisma.$transaction(async (tx) => {
+    const { round, notifications } = await prisma.$transaction(async (tx) => {
+      const createdNotifications: Notification[] = [];
       const createdRound = await tx.round.create({
         data: {
           userId: user.id,
@@ -118,13 +126,14 @@ export async function POST(req: Request) {
         include: { holes: true, course: true, tee: true },
       });
 
+      const assignedRecipientIds = new Set<string>();
       for (const assignment of d.pendingAssignments ?? []) {
         const assignmentSummary = summarizeRoundScore(
           { ...d, holes: assignment.holes },
           tee,
           "pending",
         );
-        await tx.pendingRound.create({
+        const pendingRound = await tx.pendingRound.create({
           data: {
             senderUserId: user.id,
             recipientUserId: assignment.recipientUserId,
@@ -149,7 +158,37 @@ export async function POST(req: Request) {
             holes: { create: holeCreateRows(assignment.holes) },
           },
         });
+        assignedRecipientIds.add(assignment.recipientUserId);
+
+        const rowLabel =
+          assignment.scorecardPlayerName ??
+          assignment.scorecardRowLabel ??
+          "Scorecard row";
+        createdNotifications.push(
+          ...(await createNotifications(tx, [
+            {
+              recipientId: assignment.recipientUserId,
+              type: "ROUND_ASSIGNED",
+              title: `${user.name} sent you a scorecard row`,
+              body: `${rowLabel} at ${createdRound.course.name} - ${formatRoundNotificationBody({
+                holeCount: d.holeCount,
+                totalStrokes: assignmentSummary.totalStrokes,
+                totalPar: assignmentSummary.totalPar,
+              })}`,
+              targetUrl: `/rounds/pending/${pendingRound.id}`,
+            },
+          ])),
+        );
       }
+
+      createdNotifications.push(
+        ...(await createRoundPublishedNotifications(tx, {
+          actorId: user.id,
+          actorName: user.name,
+          round: createdRound,
+          excludeRecipientIds: [...assignedRecipientIds],
+        })),
+      );
 
       if (d.tournamentScore) {
         await createOrUpdateLinkedTournamentScore(tx, {
@@ -160,8 +199,9 @@ export async function POST(req: Request) {
         });
       }
 
-      return createdRound;
+      return { round: createdRound, notifications: createdNotifications };
     });
+    await sendPushNotifications(notifications).catch(() => undefined);
     return NextResponse.json(round, { status: 201 });
   } catch (error) {
     if (error instanceof TournamentRoundLinkError) {

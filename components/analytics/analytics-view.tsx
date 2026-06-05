@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BarChart3, Flame, GitCompareArrows, History, Sparkles, TrendingUp } from "lucide-react";
-import { TrendChart } from "@/components/dashboard/trend-chart";
+import { ScoreTrendFormatPanel } from "@/components/dashboard/score-trend-format-panel";
 import { ParTypeChart } from "@/components/analytics/par-type-chart";
 import { HoleHeatmap } from "@/components/analytics/hole-heatmap";
 import { HoleHistoryPanel } from "@/components/analytics/hole-history-panel";
@@ -55,7 +55,9 @@ export function AnalyticsView({
   const eighteenHoleStats = summarizeScoreFormat(courseFiltered, 18);
   const nineHoleStats = summarizeScoreFormat(courseFiltered, 9);
 
-  const trend = buildTrend(filtered);
+  const eighteenHoleTrend = buildTrend(filtered.filter((r) => r.holeCount === 18));
+  const nineHoleTrend = buildTrend(filtered.filter((r) => r.holeCount === 9));
+  const trendInitialFormat = holeCountFilter === "9" ? "9" : "18";
   const parStats = parTypeBreakdown(filtered);
   const heatmap = holeHeatmap(filtered);
   const holeHistory = courseId === "all" ? [] : buildHoleHistory(filtered);
@@ -155,8 +157,13 @@ export function AnalyticsView({
 
         <TabsContent value="trend" className="mt-6">
           <Card className="p-6">
-            <h3 className="mb-4 text-base font-semibold tracking-tight">Score trend</h3>
-            <TrendChart trend={trend} handicap={index} />
+            <ScoreTrendFormatPanel
+              key={holeCountFilter}
+              eighteenHoleTrend={eighteenHoleTrend}
+              nineHoleTrend={nineHoleTrend}
+              handicap={index}
+              initialFormat={trendInitialFormat}
+            />
           </Card>
         </TabsContent>
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { User } from "@prisma/client";
+import type { Notification as DbNotification, User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { buildDifferentialsAndIndex } from "@/lib/handicap";
 import {
@@ -130,6 +130,11 @@ export type PendingRoundSummary = {
   acceptedRoundId: string | null;
 };
 
+export type UserNotification = Pick<
+  DbNotification,
+  "id" | "type" | "title" | "body" | "targetUrl" | "readAt" | "createdAt"
+>;
+
 export async function getShareableUsers(currentUserId: string): Promise<ShareableUser[]> {
   return prisma.user.findMany({
     where: { id: { not: currentUserId } },
@@ -177,6 +182,29 @@ export async function getRoundsPageForUser(
 export async function getPendingInboxCount(userId: string): Promise<number> {
   return prisma.pendingRound.count({
     where: { recipientUserId: userId, status: "PENDING" },
+  });
+}
+
+export async function getUnreadNotificationCount(userId: string): Promise<number> {
+  return prisma.notification.count({
+    where: { recipientId: userId, readAt: null },
+  });
+}
+
+export async function getNotificationsForUser(userId: string): Promise<UserNotification[]> {
+  return prisma.notification.findMany({
+    where: { recipientId: userId },
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      body: true,
+      targetUrl: true,
+      readAt: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 80,
   });
 }
 
