@@ -1,3 +1,11 @@
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   let data = {};
   if (event.data) {
@@ -30,21 +38,25 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  const targetUrl = new URL(event.notification.data?.url || "/", self.location.origin);
 
-  event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clientList) => {
-        for (const client of clientList) {
-          const clientUrl = new URL(client.url);
-          const targetUrl = new URL(url, self.location.origin);
-          if (clientUrl.origin === targetUrl.origin && "focus" in client) {
-            client.navigate(targetUrl.href);
-            return client.focus();
-          }
-        }
-        return self.clients.openWindow(url);
-      }),
-  );
+  event.waitUntil(openNotificationTarget(targetUrl.href));
 });
+
+async function openNotificationTarget(url) {
+  const targetUrl = new URL(url);
+  const clientList = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+
+  for (const client of clientList) {
+    const clientUrl = new URL(client.url);
+    if (clientUrl.origin !== targetUrl.origin || !("navigate" in client)) continue;
+
+    const navigatedClient = await client.navigate(targetUrl.href);
+    return (navigatedClient || client).focus();
+  }
+
+  return self.clients.openWindow(targetUrl.href);
+}
