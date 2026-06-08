@@ -8,12 +8,19 @@ import { cn } from "@/lib/utils";
 import type { RoundCalendar, RoundCalendarDay } from "@/lib/data";
 
 type CalendarRound = RoundCalendarDay["rounds"][number];
+type WeekRound = CalendarRound & { date: string };
 
-type CalendarDay = {
-  date: string;
-  dayOfWeek: number;
-  rounds: CalendarRound[];
+type CalendarWeek = {
+  index: number;
+  startDate: string;
+  endDate: string;
+  rounds: WeekRound[];
 };
+
+const DAY_MS = 86_400_000;
+const WEEKS_PER_YEAR = 52;
+const COLUMNS = 13;
+const ROWS = WEEKS_PER_YEAR / COLUMNS;
 
 export function RoundsHeatmap({
   calendars,
@@ -32,13 +39,21 @@ export function RoundsHeatmap({
     () => new Map(days.map((day) => [day.date, day.rounds])),
     [days],
   );
-  const calendarDays = React.useMemo(() => buildCalendarDays(year, byDate), [year, byDate]);
-  const weeks = React.useMemo(() => chunkWeeks(calendarDays), [calendarDays]);
+  const weeks = React.useMemo(() => buildWeeks(year, byDate), [year, byDate]);
+  const rows = React.useMemo(
+    () =>
+      Array.from({ length: ROWS }, (_, r) =>
+        weeks.slice(r * COLUMNS, r * COLUMNS + COLUMNS),
+      ),
+    [weeks],
+  );
   const defaultSelected =
-    [...calendarDays].reverse().find((day) => day.rounds.length > 0) ?? calendarDays[0];
-  const [selectedDate, setSelectedDate] = React.useState(defaultSelected?.date ?? "");
-  const selectedDay =
-    calendarDays.find((day) => day.date === selectedDate) ?? defaultSelected ?? null;
+    [...weeks].reverse().find((week) => week.rounds.length > 0) ?? weeks[0];
+  const [selectedIndex, setSelectedIndex] = React.useState(
+    defaultSelected?.index ?? 0,
+  );
+  const selectedWeek =
+    weeks.find((week) => week.index === selectedIndex) ?? defaultSelected ?? null;
   const totalRounds = days.reduce((sum, day) => sum + day.rounds.length, 0);
 
   return (
@@ -61,7 +76,7 @@ export function RoundsHeatmap({
                 type="button"
                 onClick={() => {
                   setSelectedYear(calendar.year);
-                  setSelectedDate("");
+                  setSelectedIndex(-1);
                 }}
                 className={cn(
                   "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
@@ -79,96 +94,78 @@ export function RoundsHeatmap({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0">
-          <div className="-mx-2 overflow-x-auto px-2 pb-2 [scrollbar-width:thin]">
-            <div className="min-w-max">
-              <div
-                className="mb-2 grid gap-1 pl-8 text-[10px] text-muted-foreground"
-                style={{ gridTemplateColumns: `repeat(${weeks.length}, 0.875rem)` }}
-              >
-                {weeks.map((week, index) => (
-                  <div key={index} className="h-3">
-                    {showMonthLabel(week, index, weeks) ? monthLabel(week) : ""}
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <div className="grid grid-rows-7 gap-1 pt-0.5 text-[10px] text-muted-foreground">
-                  {DAY_LABELS.map((label, index) => (
-                    <div key={label} className="flex h-3.5 items-center">
-                      {index % 2 === 1 ? label : ""}
-                    </div>
+          <div className="space-y-1.5">
+            {rows.map((rowWeeks, rowIndex) => (
+              <div key={rowIndex} className="flex items-center gap-2">
+                <div className="w-9 shrink-0 text-right text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {rowWeeks[0] ? monthLabel(rowWeeks[0].startDate) : ""}
+                </div>
+                <div className="grid flex-1 grid-cols-[repeat(13,minmax(0,1fr))] gap-1 sm:gap-1.5">
+                  {rowWeeks.map((week) => (
+                    <button
+                      key={week.index}
+                      type="button"
+                      aria-label={`${formatWeekRange(week)}: ${
+                        week.rounds.length
+                      } round${week.rounds.length === 1 ? "" : "s"}`}
+                      title={`${formatWeekRange(week)} · ${week.rounds.length} round${
+                        week.rounds.length === 1 ? "" : "s"
+                      }`}
+                      onClick={() => setSelectedIndex(week.index)}
+                      className={cn(
+                        "aspect-square w-full rounded-md border transition-transform active:scale-90",
+                        weekClass(week.rounds.length),
+                        selectedWeek?.index === week.index &&
+                          "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                      )}
+                    />
                   ))}
                 </div>
-                <div className="grid grid-flow-col grid-rows-7 gap-1">
-                  {weeks.flatMap((week, weekIndex) =>
-                    week.map((day, dayIndex) =>
-                      day ? (
-                        <button
-                          key={day.date}
-                          type="button"
-                          aria-label={`${formatReadableDate(day.date)}: ${
-                            day.rounds.length
-                          } round${day.rounds.length === 1 ? "" : "s"}`}
-                          title={`${formatReadableDate(day.date)} · ${day.rounds.length} round${
-                            day.rounds.length === 1 ? "" : "s"
-                          }`}
-                          onClick={() => setSelectedDate(day.date)}
-                          className={cn(
-                            "h-3.5 w-3.5 rounded-[3px] border transition-transform active:scale-90",
-                            heatClass(day.rounds.length),
-                            selectedDay?.date === day.date &&
-                              "ring-2 ring-primary ring-offset-2 ring-offset-background",
-                          )}
-                        />
-                      ) : (
-                        <div
-                          key={`empty-${weekIndex}-${dayIndex}`}
-                          className="h-3.5 w-3.5"
-                        />
-                      ),
-                    ),
-                  )}
-                </div>
               </div>
-              <div className="mt-3 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
-                <span>Less</span>
-                {[0, 1, 2, 3].map((count) => (
-                  <span
-                    key={count}
-                    className={cn("h-3.5 w-3.5 rounded-[3px] border", heatClass(count))}
-                  />
-                ))}
-                <span>More</span>
-              </div>
-            </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Each cell is one week — brighter means more rounds played.
+          </p>
+          <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
+            <span>Less</span>
+            {[0, 1, 2, 3, 4].map((count) => (
+              <span
+                key={count}
+                className={cn("h-3.5 w-3.5 rounded-[3px] border", weekClass(count))}
+              />
+            ))}
+            <span>More</span>
           </div>
         </div>
 
-        <DayDetails day={selectedDay} />
+        <WeekDetails week={selectedWeek} />
       </div>
     </Card>
   );
 }
 
-function DayDetails({ day }: { day: CalendarDay | null }) {
-  if (!day) {
+function WeekDetails({ week }: { week: CalendarWeek | null }) {
+  if (!week) {
     return (
       <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 text-sm text-muted-foreground">
-        No calendar days available.
+        No calendar weeks available.
       </div>
     );
   }
 
+  const rounds = [...week.rounds].sort((a, b) => a.date.localeCompare(b.date));
+
   return (
     <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
       <div className="text-xs uppercase tracking-widest text-muted-foreground">
-        {formatReadableDate(day.date)}
+        {formatWeekRange(week)}
       </div>
-      {day.rounds.length === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">No rounds played on this day.</p>
+      {rounds.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">No rounds played this week.</p>
       ) : (
         <div className="mt-3 space-y-3">
-          {day.rounds.map((round) => {
+          {rounds.map((round) => {
             const overPar = round.totalStrokes - round.totalPar;
             return (
               <Link
@@ -180,16 +177,12 @@ function DayDetails({ day }: { day: CalendarDay | null }) {
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{round.courseName}</div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>{formatReadableDate(round.date)}</span>
+                      <span>·</span>
                       <MapPin className="h-3 w-3" />
                       <span>{round.city}</span>
                       <span>·</span>
                       <span>{round.holeCount}H</span>
-                      {round.teeName && (
-                        <>
-                          <span>·</span>
-                          <span>{round.teeName}</span>
-                        </>
-                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -216,83 +209,68 @@ function DayDetails({ day }: { day: CalendarDay | null }) {
   );
 }
 
-function buildCalendarDays(year: number, byDate: Map<string, CalendarRound[]>): CalendarDay[] {
-  const start = new Date(Date.UTC(year, 0, 1));
-  const end = new Date(Date.UTC(year, 11, 31));
-  const days: CalendarDay[] = [];
+function buildWeeks(year: number, byDate: Map<string, CalendarRound[]>): CalendarWeek[] {
+  const weeks: CalendarWeek[] = Array.from({ length: WEEKS_PER_YEAR }, (_, index) => ({
+    index,
+    startDate: "",
+    endDate: "",
+    rounds: [],
+  }));
+  const start = Date.UTC(year, 0, 1);
+  const end = Date.UTC(year, 11, 31);
 
-  for (let date = start; date <= end; date = addUtcDays(date, 1)) {
-    const key = date.toISOString().slice(0, 10);
-    days.push({
-      date: key,
-      dayOfWeek: date.getUTCDay(),
-      rounds: byDate.get(key) ?? [],
-    });
-  }
-
-  return days;
-}
-
-function chunkWeeks(days: CalendarDay[]): (CalendarDay | null)[][] {
-  const weeks: (CalendarDay | null)[][] = [];
-  let current: (CalendarDay | null)[] = [];
-
-  for (let i = 0; i < days[0].dayOfWeek; i += 1) current.push(null);
-  for (const day of days) {
-    current.push(day);
-    if (current.length === 7) {
-      weeks.push(current);
-      current = [];
+  for (let d = start; d <= end; d += DAY_MS) {
+    const key = new Date(d).toISOString().slice(0, 10);
+    const offset = Math.round((d - start) / DAY_MS);
+    const weekIndex = Math.min(Math.floor(offset / 7), WEEKS_PER_YEAR - 1);
+    const week = weeks[weekIndex];
+    if (!week.startDate) week.startDate = key;
+    week.endDate = key;
+    for (const round of byDate.get(key) ?? []) {
+      week.rounds.push({ ...round, date: key });
     }
-  }
-  if (current.length > 0) {
-    while (current.length < 7) current.push(null);
-    weeks.push(current);
   }
 
   return weeks;
 }
 
-function addUtcDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
-}
-
-function showMonthLabel(
-  week: (CalendarDay | null)[],
-  index: number,
-  weeks: (CalendarDay | null)[][],
-): boolean {
-  const firstDay = week.find((day) => day != null);
-  if (!firstDay) return false;
-  if (index === 0) return true;
-  const previous = [...(weeks[index - 1] ?? [])].reverse().find((day) => day != null);
-  return previous ? monthLabel([previous]) !== monthLabel(week) : true;
-}
-
-function monthLabel(week: (CalendarDay | null)[]): string {
-  const day = week.find((item) => item != null);
-  if (!day) return "";
+function monthLabel(date: string): string {
+  if (!date) return "";
   return new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(
-    new Date(`${day.date}T00:00:00Z`),
+    new Date(`${date}T00:00:00Z`),
   );
+}
+
+function formatWeekRange(week: CalendarWeek): string {
+  if (!week.startDate) return "";
+  const start = new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${week.startDate}T00:00:00Z`));
+  const end = new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${week.endDate}T00:00:00Z`));
+  return start === end ? start : `${start} – ${end}`;
 }
 
 function formatReadableDate(date: string): string {
   return new Intl.DateTimeFormat("en", {
+    weekday: "short",
     month: "short",
     day: "numeric",
-    year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`));
 }
 
-function heatClass(rounds: number): string {
+function weekClass(rounds: number): string {
   if (rounds <= 0) return "border-border/60 bg-secondary/50";
-  if (rounds === 1) return "border-primary/30 bg-primary/30 hover:bg-primary/40";
-  if (rounds === 2) return "border-primary/50 bg-primary/55 hover:bg-primary/65";
-  return "border-primary/70 bg-primary/80 hover:bg-primary/90";
+  if (rounds === 1) return "border-primary/30 bg-primary/25 hover:bg-primary/35";
+  if (rounds === 2) return "border-primary/45 bg-primary/45 hover:bg-primary/55";
+  if (rounds === 3) return "border-primary/60 bg-primary/65 hover:bg-primary/75";
+  return "border-primary/75 bg-primary/85 hover:bg-primary/95";
 }
 
 function scoreTone(overPar: number): string {
@@ -301,5 +279,3 @@ function scoreTone(overPar: number): string {
     (overPar <= 0 ? "text-primary" : overPar < 5 ? "text-warning" : "text-destructive")
   );
 }
-
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
