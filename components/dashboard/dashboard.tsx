@@ -9,6 +9,9 @@ import type { RoundFull } from "@/lib/stats";
 import { DashboardTrendCard } from "@/components/dashboard/dashboard-trend-card";
 import { format } from "date-fns";
 
+const ENTER =
+  "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-3 motion-safe:duration-500 motion-safe:[animation-fill-mode:both]";
+
 export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
   const counted = countedRounds(rounds);
   const scoringRounds = counted.map((r) => ({
@@ -50,7 +53,7 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
       <div className="flex items-end justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Dashboard</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Your golf, distilled.</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Your golf, distilled.</h1>
         </div>
         <Button asChild>
           <Link href="/rounds/new">
@@ -61,7 +64,7 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {/* Handicap card */}
-        <Card className="relative overflow-hidden p-6 md:col-span-1">
+        <Card className={`relative overflow-hidden p-6 md:col-span-1 ${ENTER}`}>
           <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
           <div className="relative">
             <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
@@ -96,7 +99,7 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
         </Card>
 
         {/* Latest round card */}
-        <Card className="p-6 md:col-span-1">
+        <Card className={`p-6 md:col-span-1 ${ENTER}`} style={{ animationDelay: "80ms" }}>
           <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
             <Calendar className="h-3.5 w-3.5" /> Latest round
           </div>
@@ -125,7 +128,7 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
               className={
                 latestOverPar <= 0
                   ? "border-primary/40 text-primary"
-                  : "border-amber-500/40 text-amber-400"
+                  : "border-warning/40 text-warning"
               }
             >
               {latestOverPar >= 0 ? "+" : ""}
@@ -135,7 +138,7 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
         </Card>
 
         {/* Par type averages */}
-        <Card className="p-6 md:col-span-2 xl:col-span-1">
+        <Card className={`p-6 md:col-span-2 xl:col-span-1 ${ENTER}`} style={{ animationDelay: "160ms" }}>
           <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
             <Flag className="h-3.5 w-3.5" /> Par-type averages
           </div>
@@ -152,7 +155,7 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
                     (p.avgVsPar <= 0
                       ? "text-primary"
                       : p.avgVsPar < 1
-                        ? "text-amber-400"
+                        ? "text-warning"
                         : "text-destructive")
                   }
                 >
@@ -191,7 +194,7 @@ export function Dashboard({ rounds }: { rounds: RoundFull[] }) {
             <Link
               key={c.courseId}
               href={`/courses/${c.courseId}`}
-              className="group rounded-xl border border-border/60 bg-secondary/40 p-4 transition-colors hover:border-primary/40"
+              className="group rounded-xl border border-border/60 bg-secondary/40 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -235,7 +238,7 @@ function CourseFormatStat({
               (stat.bestOverPar <= 0
                 ? "text-primary"
                 : stat.bestOverPar < 5
-                  ? "text-amber-400"
+                  ? "text-warning"
                   : "text-destructive")
             }
           >

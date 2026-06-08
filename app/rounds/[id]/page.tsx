@@ -97,7 +97,7 @@ export default async function RoundDetail({
                   (over <= 0
                     ? "text-primary"
                     : over < 5
-                      ? "text-amber-400"
+                      ? "text-warning"
                       : "text-destructive")
                 }
               >

@@ -329,6 +329,6 @@ function formatDate(date: string) {
 function scoreTone(vsPar: number) {
   if (vsPar < 0) return "text-primary";
   if (vsPar === 0) return "text-muted-foreground";
-  if (vsPar <= 1) return "text-amber-400";
+  if (vsPar <= 1) return "text-warning";
   return "text-destructive";
 }

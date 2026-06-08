@@ -298,7 +298,7 @@ function heatClass(rounds: number): string {
 function scoreTone(overPar: number): string {
   return (
     "text-xs " +
-    (overPar <= 0 ? "text-primary" : overPar < 5 ? "text-amber-400" : "text-destructive")
+    (overPar <= 0 ? "text-primary" : overPar < 5 ? "text-warning" : "text-destructive")
   );
 }
 

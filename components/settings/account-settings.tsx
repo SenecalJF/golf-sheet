@@ -136,7 +136,7 @@ export function AccountSettings({
                 Connected · ****{status.keyLast4}
               </Badge>
             ) : (
-              <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+              <Badge variant="outline" className="border-warning/40 text-warning">
                 Missing
               </Badge>
             )}

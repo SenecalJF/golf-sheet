@@ -50,7 +50,7 @@ export function AiInsightsPanel({
           <Sparkles className="h-5 w-5 text-primary" />
           <h3 className="text-base font-semibold tracking-tight">AI insights</h3>
         </div>
-        <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+        <Badge variant="outline" className="border-warning/40 text-warning">
           Add your Claude key in Settings to unlock
         </Badge>
       </div>

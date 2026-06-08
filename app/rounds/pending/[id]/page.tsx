@@ -123,7 +123,7 @@ export default async function PendingRoundPage({
             <p className="text-sm uppercase tracking-[0.18em] text-primary">
               Pending round
             </p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
               Review shared score
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -131,7 +131,7 @@ export default async function PendingRoundPage({
               {format(pending.date, "MMM d, yyyy")}
             </p>
           </div>
-          <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+          <Badge variant="outline" className="border-warning/40 text-warning">
             <Clock className="mr-1 h-3 w-3" />
             Waiting for you
           </Badge>

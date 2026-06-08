@@ -20,7 +20,7 @@ export default async function Home() {
             <p className="text-sm uppercase tracking-[0.18em] text-primary">
               Dashboard
             </p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
               Your golf, distilled.
             </h1>
           </div>

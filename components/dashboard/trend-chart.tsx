@@ -11,6 +11,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import type { TrendPoint } from "@/lib/stats";
+import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { format, parseISO } from "date-fns";
 
 export function TrendChart({
@@ -22,6 +23,7 @@ export function TrendChart({
   handicap: number | null;
   emptyMessage?: string;
 }) {
+  const reduced = useReducedMotion();
   if (trend.length === 0) {
     return (
       <div className="grid h-64 place-items-center text-sm text-muted-foreground">
@@ -80,7 +82,7 @@ export function TrendChart({
             strokeWidth={2.5}
             dot={{ r: 3, fill: "var(--primary)", stroke: "var(--background)", strokeWidth: 2 }}
             activeDot={{ r: 5 }}
-            isAnimationActive
+            isAnimationActive={!reduced}
           />
         </LineChart>
       </ResponsiveContainer>

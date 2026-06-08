@@ -2,8 +2,10 @@
 
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from "recharts";
 import type { ParTypeStat } from "@/lib/stats";
+import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 export function ParTypeChart({ stats }: { stats: ParTypeStat[] }) {
+  const reduced = useReducedMotion();
   if (stats.every((s) => s.holes === 0)) {
     return (
       <div className="grid h-64 place-items-center text-sm text-muted-foreground">
@@ -33,7 +35,7 @@ export function ParTypeChart({ stats }: { stats: ParTypeStat[] }) {
             }}
           />
           <ReferenceLine y={0} stroke="var(--border)" />
-          <Bar dataKey="avgVsPar" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+          <Bar dataKey="avgVsPar" fill="var(--primary)" radius={[8, 8, 0, 0]} isAnimationActive={!reduced} />
         </BarChart>
       </ResponsiveContainer>
     </div>

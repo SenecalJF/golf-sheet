@@ -49,7 +49,7 @@ export default async function PlayersPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Players</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Community stats</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Community stats</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Aggregate-only profiles for every Golf Clubhouse user.
           </p>

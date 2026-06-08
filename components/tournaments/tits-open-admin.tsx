@@ -121,7 +121,7 @@ export function TitsOpenAdmin({
             <ArrowLeft className="mr-1 h-4 w-4" /> Tits Open {edition.year}
           </Link>
         </Button>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight">
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
           {edition.title} admin
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">

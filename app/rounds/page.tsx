@@ -45,7 +45,7 @@ export default async function RoundsPage({
       <div className="flex items-end justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Rounds</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             {isFirstPage
               ? `${totalRounds ?? 0} round${(totalRounds ?? 0) === 1 ? "" : "s"} logged`
               : "Older rounds"}
@@ -153,14 +153,14 @@ function PendingInboxPreview({
   const visible = rounds.slice(0, PENDING_PREVIEW);
   const overflow = totalPending - visible.length;
   return (
-    <Card className="overflow-hidden border-amber-500/30 bg-amber-500/5 p-0">
+    <Card className="overflow-hidden border-warning/30 bg-warning/5 p-0">
       <div className="flex flex-col gap-2 border-b border-border/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <Clock className="h-4 w-4 text-amber-400" />
+          <Clock className="h-4 w-4 text-warning" />
           Pending rounds for you
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+          <Badge variant="outline" className="border-warning/40 text-warning">
             {totalPending} waiting
           </Badge>
           <Button asChild variant="ghost" size="sm">
@@ -203,7 +203,7 @@ function PendingInboxPreview({
                       {over} vs par
                     </div>
                   </div>
-                  <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+                  <Badge variant="outline" className="border-warning/40 text-warning">
                     Review
                   </Badge>
                 </div>
@@ -295,7 +295,7 @@ function StatusBadge({ status }: { status: PendingRoundSummary["status"] }) {
     );
   }
   return (
-    <Badge variant="outline" className="w-fit border-amber-500/40 text-amber-400">
+    <Badge variant="outline" className="w-fit border-warning/40 text-warning">
       <Clock className="mr-1 h-3 w-3" />
       Pending
     </Badge>
@@ -305,6 +305,6 @@ function StatusBadge({ status }: { status: PendingRoundSummary["status"] }) {
 function scoreTone(over: number): string {
   return (
     "text-xs " +
-    (over <= 0 ? "text-primary" : over < 5 ? "text-amber-400" : "text-destructive")
+    (over <= 0 ? "text-primary" : over < 5 ? "text-warning" : "text-destructive")
   );
 }

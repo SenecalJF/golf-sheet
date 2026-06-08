@@ -192,7 +192,7 @@ export function PushNotificationSettings() {
               enabled
                 ? "border-primary/40 text-primary"
                 : state.status === "blocked" || state.status === "not-configured"
-                  ? "border-amber-500/40 text-amber-400"
+                  ? "border-warning/40 text-warning"
                   : ""
             }
           >

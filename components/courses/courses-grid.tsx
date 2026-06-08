@@ -54,7 +54,7 @@ export function CoursesGrid({ courses }: { courses: CourseCardData[] }) {
             const needsSetup = !tee || tee.rating == null || tee.slope == null;
             return (
               <Link key={c.id} href={`/courses/${c.id}`} className="group">
-                <Card className="h-full p-5 transition-colors group-hover:border-primary/40">
+                <Card className="h-full p-5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-lg group-hover:shadow-primary/5">
                   <div className="flex items-start justify-between">
                     <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary">
                       <Flag className="h-5 w-5" />

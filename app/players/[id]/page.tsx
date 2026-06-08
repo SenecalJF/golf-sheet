@@ -50,7 +50,7 @@ export default async function PlayerProfilePage({
             />
             <div>
               <p className="text-sm uppercase tracking-[0.18em] text-primary">Player</p>
-              <h1 className="mt-1 text-4xl font-semibold tracking-tight">
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
                 {stats.user.name}
               </h1>
             </div>
@@ -345,6 +345,6 @@ function formatRoundDate(date: Date): string {
 function scoreTone(over: number): string {
   return (
     "text-xs " +
-    (over <= 0 ? "text-primary" : over < 5 ? "text-amber-400" : "text-destructive")
+    (over <= 0 ? "text-primary" : over < 5 ? "text-warning" : "text-destructive")
   );
 }

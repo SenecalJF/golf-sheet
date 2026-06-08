@@ -639,7 +639,7 @@ export function NewRoundFlow({
           <p className="text-sm uppercase tracking-[0.18em] text-primary">
             {tournamentContext ? `Tits Open ${tournamentContext.year}` : "New round"}
           </p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             {tournamentContext ? "Submit tournament scorecard" : "Log a scorecard"}
           </h1>
         </div>
@@ -692,7 +692,7 @@ export function NewRoundFlow({
                     pick the one you played.
                   </p>
                   {!aiEnabled && (
-                    <Badge variant="outline" className="mt-3 border-amber-500/40 text-amber-400">
+                    <Badge variant="outline" className="mt-3 border-warning/40 text-warning">
                       Add your Claude key in Settings
                     </Badge>
                   )}

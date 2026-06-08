@@ -269,8 +269,8 @@ export function RoundEditForm({
         </div>
 
         {courseOrTeeChanged && (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+          <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <div>
               Changing course or tee can update pars, rating, slope, score differential, and
               handicap-related stats.
@@ -279,7 +279,7 @@ export function RoundEditForm({
         )}
 
         {!teeId && (
-          <div className="w-fit max-w-full rounded-lg border border-amber-500/40 px-3 py-2 text-sm text-amber-400">
+          <div className="w-fit max-w-full rounded-lg border border-warning/40 px-3 py-2 text-sm text-warning">
             No tee selected: differential will be unavailable.
           </div>
         )}

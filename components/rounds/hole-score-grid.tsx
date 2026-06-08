@@ -85,7 +85,7 @@ export function HoleScoreGrid({
               : conf >= 0.85
                 ? "border-primary/40"
                 : conf >= 0.6
-                  ? "border-amber-500/40"
+                  ? "border-warning/40"
                   : "border-destructive/40 bg-destructive/5";
         const overPar = h.strokes != null ? h.strokes - h.par : null;
         return (
@@ -136,7 +136,7 @@ export function HoleScoreGrid({
                     : overPar === 0
                       ? "text-muted-foreground"
                       : overPar === 1
-                        ? "text-amber-400"
+                        ? "text-warning"
                         : "text-destructive",
                 )}
               >
@@ -238,7 +238,7 @@ export function HoleScoreGrid({
                     : item.delta === 0
                       ? "text-foreground"
                       : item.delta === 1
-                        ? "text-amber-400"
+                        ? "text-warning"
                         : "text-destructive",
                 )}
               >
@@ -261,7 +261,7 @@ export function HoleScoreGrid({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-medium">
               {reviewIssues.length > 0 ? (
-                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                <AlertTriangle className="h-4 w-4 text-warning" />
               ) : (
                 <CheckCircle2 className="h-4 w-4 text-primary" />
               )}
@@ -282,7 +282,7 @@ export function HoleScoreGrid({
                       "w-36 snap-start rounded-xl border bg-card/70 p-3",
                       safeActiveIdx === idx && "border-primary/60 ring-2 ring-primary/30",
                       status.tone === "bad" && "border-destructive/50",
-                      status.tone === "warn" && "border-amber-500/50",
+                      status.tone === "warn" && "border-warning/50",
                       status.tone === "good" && "border-primary/30",
                     )}
                   >
@@ -339,7 +339,7 @@ export function HoleScoreGrid({
                 over <= 0
                   ? "text-primary"
                   : over < 5
-                    ? "text-amber-400"
+                    ? "text-warning"
                     : "text-destructive"
               }
             >
@@ -352,7 +352,7 @@ export function HoleScoreGrid({
       {showConfidence && holes.some((h) => h.confidence != null) && (
         <div className="text-[11px] text-muted-foreground">
           <span className="inline-block h-2 w-2 rounded-full bg-primary mr-1.5" /> high confidence
-          <span className="ml-3 inline-block h-2 w-2 rounded-full bg-amber-400 mr-1.5" /> review
+          <span className="ml-3 inline-block h-2 w-2 rounded-full bg-warning mr-1.5" /> review
           <span className="ml-3 inline-block h-2 w-2 rounded-full bg-destructive mr-1.5" /> illegible — please fill in
         </div>
       )}
@@ -385,7 +385,7 @@ function ScorecardMark({ overPar }: { overPar: number | null }) {
     overPar < 0
       ? "border-primary/85"
       : overPar === 1
-        ? "border-amber-400/85"
+        ? "border-warning/85"
         : "border-destructive/80";
 
   return (
@@ -443,7 +443,7 @@ function confidenceStatus(hole: GridHole): {
     return {
       label: `${Math.round(hole.confidence * 100)}%`,
       tone: "warn",
-      className: "text-amber-400",
+      className: "text-warning",
     };
   }
   return {

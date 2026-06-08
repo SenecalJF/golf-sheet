@@ -14,7 +14,7 @@ export default async function NotificationsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Notifications</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">What needs attention</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">What needs attention</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Round shares and new scores from the clubhouse.
           </p>

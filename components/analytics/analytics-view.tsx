@@ -88,7 +88,7 @@ export function AnalyticsView({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Analytics</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             What the numbers say
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -269,6 +269,6 @@ function FormatSummaryCard({
 function scoreTone(overPar: number): string {
   return (
     "text-xs " +
-    (overPar <= 0 ? "text-primary" : overPar < 5 ? "text-amber-400" : "text-destructive")
+    (overPar <= 0 ? "text-primary" : overPar < 5 ? "text-warning" : "text-destructive")
   );
 }

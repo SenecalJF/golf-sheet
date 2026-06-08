@@ -31,7 +31,7 @@ export default async function EditRoundPage({
         </Button>
         <div className="mt-2">
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Edit round</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             {round.course.name}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

@@ -40,7 +40,7 @@ export default async function PendingInboxPage({
         <div className="mt-2 flex items-end justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-primary">Inbox</p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
               Shared with you
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -48,7 +48,7 @@ export default async function PendingInboxPage({
             </p>
           </div>
           {pendingCount > 0 && (
-            <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+            <Badge variant="outline" className="border-warning/40 text-warning">
               {pendingCount} pending
             </Badge>
           )}
@@ -147,7 +147,7 @@ function StatusBadge({
     );
   }
   return (
-    <Badge variant="outline" className="w-fit border-amber-500/40 text-amber-400">
+    <Badge variant="outline" className="w-fit border-warning/40 text-warning">
       <Clock className="mr-1 h-3 w-3" />
       {action ?? "Pending"}
     </Badge>
@@ -157,6 +157,6 @@ function StatusBadge({
 function scoreTone(over: number): string {
   return (
     "text-xs " +
-    (over <= 0 ? "text-primary" : over < 5 ? "text-amber-400" : "text-destructive")
+    (over <= 0 ? "text-primary" : over < 5 ? "text-warning" : "text-destructive")
   );
 }

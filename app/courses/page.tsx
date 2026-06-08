@@ -15,7 +15,7 @@ export default async function CoursesPage() {
       <div className="flex items-end justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-primary">Courses</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             {courses.length} courses across Quebec
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
