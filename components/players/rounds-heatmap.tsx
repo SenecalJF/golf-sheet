@@ -243,7 +243,7 @@ function buildMonthWeeks(
   for (let d = start; d <= end; d += DAY_MS) {
     const date = new Date(d);
     const month = date.getUTCMonth();
-    const weekOfMonth = Math.ceil(date.getUTCDate() / 7);
+    const weekOfMonth = Math.min(Math.ceil(date.getUTCDate() / 7), 4);
     const dateKey = date.toISOString().slice(0, 10);
     const key = `${month}-${weekOfMonth}`;
     let bucket = buckets.get(key);
