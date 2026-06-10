@@ -10,17 +10,19 @@ import type { RoundCalendar, RoundCalendarDay } from "@/lib/data";
 type CalendarRound = RoundCalendarDay["rounds"][number];
 type WeekRound = CalendarRound & { date: string };
 
-type CalendarWeek = {
-  index: number;
+type MonthWeek = {
+  month: number;
+  weekOfMonth: number;
   startDate: string;
   endDate: string;
   rounds: WeekRound[];
 };
 
 const DAY_MS = 86_400_000;
-const WEEKS_PER_YEAR = 52;
-const COLUMNS = 13;
-const ROWS = WEEKS_PER_YEAR / COLUMNS;
+const MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
 export function RoundsHeatmap({
   calendars,
@@ -39,21 +41,18 @@ export function RoundsHeatmap({
     () => new Map(days.map((day) => [day.date, day.rounds])),
     [days],
   );
-  const weeks = React.useMemo(() => buildWeeks(year, byDate), [year, byDate]);
-  const rows = React.useMemo(
-    () =>
-      Array.from({ length: ROWS }, (_, r) =>
-        weeks.slice(r * COLUMNS, r * COLUMNS + COLUMNS),
-      ),
-    [weeks],
+  const months = React.useMemo(() => buildMonthWeeks(year, byDate), [year, byDate]);
+  const maxRows = React.useMemo(
+    () => Math.max(1, ...months.map((weeks) => weeks.length)),
+    [months],
   );
-  const defaultSelected =
-    [...weeks].reverse().find((week) => week.rounds.length > 0) ?? weeks[0];
-  const [selectedIndex, setSelectedIndex] = React.useState(
-    defaultSelected?.index ?? 0,
-  );
+  const defaultSelected = React.useMemo(() => {
+    const all = months.flat();
+    return [...all].reverse().find((week) => week.rounds.length > 0) ?? all[0] ?? null;
+  }, [months]);
+  const [selectedKey, setSelectedKey] = React.useState("");
   const selectedWeek =
-    weeks.find((week) => week.index === selectedIndex) ?? defaultSelected ?? null;
+    months.flat().find((week) => weekKey(week) === selectedKey) ?? defaultSelected;
   const totalRounds = days.reduce((sum, day) => sum + day.rounds.length, 0);
 
   return (
@@ -76,7 +75,7 @@ export function RoundsHeatmap({
                 type="button"
                 onClick={() => {
                   setSelectedYear(calendar.year);
-                  setSelectedIndex(-1);
+                  setSelectedKey("");
                 }}
                 className={cn(
                   "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
@@ -94,38 +93,60 @@ export function RoundsHeatmap({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0">
-          <div className="space-y-1.5">
-            {rows.map((rowWeeks, rowIndex) => (
-              <div key={rowIndex} className="flex items-center gap-2">
-                <div className="w-9 shrink-0 text-right text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {rowWeeks[0] ? monthLabel(rowWeeks[0].startDate) : ""}
-                </div>
-                <div className="grid flex-1 grid-cols-[repeat(13,minmax(0,1fr))] gap-1 sm:gap-1.5">
-                  {rowWeeks.map((week) => (
-                    <button
-                      key={week.index}
-                      type="button"
-                      aria-label={`${formatWeekRange(week)}: ${
-                        week.rounds.length
-                      } round${week.rounds.length === 1 ? "" : "s"}`}
-                      title={`${formatWeekRange(week)} · ${week.rounds.length} round${
-                        week.rounds.length === 1 ? "" : "s"
-                      }`}
-                      onClick={() => setSelectedIndex(week.index)}
-                      className={cn(
-                        "aspect-square w-full rounded-md border transition-transform active:scale-90",
-                        weekClass(week.rounds.length),
-                        selectedWeek?.index === week.index &&
-                          "ring-2 ring-primary ring-offset-2 ring-offset-background",
-                      )}
-                    />
+          <div className="-mx-2 overflow-x-auto px-2 pb-2 [scrollbar-width:thin]">
+            <div className="min-w-[34rem] space-y-1">
+              <div className="flex items-center gap-1.5">
+                <div className="w-7 shrink-0" />
+                <div className="grid flex-1 grid-cols-[repeat(12,minmax(0,1fr))] gap-1 text-center text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {MONTH_LABELS.map((label) => (
+                    <div key={label}>{label}</div>
                   ))}
                 </div>
               </div>
-            ))}
+
+              {Array.from({ length: maxRows }, (_, rowIndex) => (
+                <div key={rowIndex} className="flex items-center gap-1.5">
+                  <div className="w-7 shrink-0 text-right text-[10px] uppercase tracking-wider text-muted-foreground">
+                    W{rowIndex + 1}
+                  </div>
+                  <div className="grid flex-1 grid-cols-[repeat(12,minmax(0,1fr))] gap-1">
+                    {months.map((weeks, monthIndex) => {
+                      const week = weeks[rowIndex];
+                      if (!week) {
+                        return (
+                          <div
+                            key={`${monthIndex}-${rowIndex}`}
+                            className="aspect-square w-full"
+                          />
+                        );
+                      }
+                      return (
+                        <button
+                          key={weekKey(week)}
+                          type="button"
+                          aria-label={`${formatWeekRange(week)}: ${
+                            week.rounds.length
+                          } round${week.rounds.length === 1 ? "" : "s"}`}
+                          title={`${formatWeekRange(week)} · ${week.rounds.length} round${
+                            week.rounds.length === 1 ? "" : "s"
+                          }`}
+                          onClick={() => setSelectedKey(weekKey(week))}
+                          className={cn(
+                            "aspect-square w-full rounded-md border transition-transform active:scale-90",
+                            weekClass(week.rounds.length),
+                            selectedWeek && weekKey(selectedWeek) === weekKey(week) &&
+                              "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Each cell is one week — brighter means more rounds played.
+            Columns are months, rows are weeks — brighter means more rounds played.
           </p>
           <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
             <span>Less</span>
@@ -145,7 +166,7 @@ export function RoundsHeatmap({
   );
 }
 
-function WeekDetails({ week }: { week: CalendarWeek | null }) {
+function WeekDetails({ week }: { week: MonthWeek | null }) {
   if (!week) {
     return (
       <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 text-sm text-muted-foreground">
@@ -159,8 +180,9 @@ function WeekDetails({ week }: { week: CalendarWeek | null }) {
   return (
     <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
       <div className="text-xs uppercase tracking-widest text-muted-foreground">
-        {formatWeekRange(week)}
+        {MONTH_LABELS[week.month]} · week {week.weekOfMonth}
       </div>
+      <div className="mt-0.5 text-sm text-muted-foreground">{formatWeekRange(week)}</div>
       {rounds.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">No rounds played this week.</p>
       ) : (
@@ -209,39 +231,41 @@ function WeekDetails({ week }: { week: CalendarWeek | null }) {
   );
 }
 
-function buildWeeks(year: number, byDate: Map<string, CalendarRound[]>): CalendarWeek[] {
-  const weeks: CalendarWeek[] = Array.from({ length: WEEKS_PER_YEAR }, (_, index) => ({
-    index,
-    startDate: "",
-    endDate: "",
-    rounds: [],
-  }));
+function buildMonthWeeks(
+  year: number,
+  byDate: Map<string, CalendarRound[]>,
+): MonthWeek[][] {
+  const months: MonthWeek[][] = Array.from({ length: 12 }, () => []);
+  const buckets = new Map<string, MonthWeek>();
   const start = Date.UTC(year, 0, 1);
   const end = Date.UTC(year, 11, 31);
 
   for (let d = start; d <= end; d += DAY_MS) {
-    const key = new Date(d).toISOString().slice(0, 10);
-    const offset = Math.round((d - start) / DAY_MS);
-    const weekIndex = Math.min(Math.floor(offset / 7), WEEKS_PER_YEAR - 1);
-    const week = weeks[weekIndex];
-    if (!week.startDate) week.startDate = key;
-    week.endDate = key;
-    for (const round of byDate.get(key) ?? []) {
-      week.rounds.push({ ...round, date: key });
+    const date = new Date(d);
+    const month = date.getUTCMonth();
+    const weekOfMonth = Math.ceil(date.getUTCDate() / 7);
+    const dateKey = date.toISOString().slice(0, 10);
+    const key = `${month}-${weekOfMonth}`;
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = { month, weekOfMonth, startDate: dateKey, endDate: dateKey, rounds: [] };
+      buckets.set(key, bucket);
+      months[month].push(bucket);
+    }
+    bucket.endDate = dateKey;
+    for (const round of byDate.get(dateKey) ?? []) {
+      bucket.rounds.push({ ...round, date: dateKey });
     }
   }
 
-  return weeks;
+  return months;
 }
 
-function monthLabel(date: string): string {
-  if (!date) return "";
-  return new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(
-    new Date(`${date}T00:00:00Z`),
-  );
+function weekKey(week: MonthWeek): string {
+  return `${week.month}-${week.weekOfMonth}`;
 }
 
-function formatWeekRange(week: CalendarWeek): string {
+function formatWeekRange(week: MonthWeek): string {
   if (!week.startDate) return "";
   const start = new Intl.DateTimeFormat("en", {
     month: "short",
